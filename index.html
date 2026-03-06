@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>철도검사처 스마트 AI 대시보드</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <style>
+        :root {
+            --primary-color: #0f4c81; /* 네이비 블루 */
+            --secondary-color: #1890ff; /* 밝은 블루 */
+            --bg-color: #eef2f6; /* 아주 연한 회청색 배경 */
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --card-bg: #ffffff;
+        }
+
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; 
+            background-color: var(--bg-color); 
+            margin: 0; 
+            padding: 0; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-main);
+        }
+
+        /* 메인 레이아웃 래퍼 (좌우 분할) */
+        .dashboard-wrapper {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(15, 76, 129, 0.1);
+            overflow: hidden;
+            margin: 40px 0;
+        }
+
+        /* 왼쪽: 타이틀 및 소개 영역 */
+        .intro-panel {
+            flex: 0 0 40%;
+            background: linear-gradient(145deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* 배경 장식 요소 */
+        .intro-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            width: 250px;
+            height: 250px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .intro-panel h1 {
+            font-size: 38px;
+            font-weight: 800;
+            margin: 0 0 15px 0;
+            line-height: 1.3;
+            letter-spacing: -1px;
+            z-index: 1;
+        }
+
+        .intro-panel p {
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin: 0 0 40px 0;
+            z-index: 1;
+        }
+
+        .intro-footer {
+            margin-top: auto;
+            font-size: 13px;
+            opacity: 0.7;
+            z-index: 1;
+        }
+
+        /* 오른쪽: AI 비서 리스트 영역 */
+        .links-panel {
+            flex: 1;
+            padding: 60px 50px;
+            background: #fafcff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* 리스트 형태의 버튼 디자인 */
+        .ai-list-item {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 20px 30px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            border: 1px solid #edf2f7;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+        }
+
+        .ai-list-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: var(--secondary-color);
+            border-radius: 20px 0 0 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 호버 효과: 오른쪽으로 살짝 밀리며 선 강조 */
+        .ai-list-item:hover {
+            transform: translateX(10px);
+            box-shadow: 0 10px 25px rgba(24, 144, 255, 0.12);
+            border-color: transparent;
+        }
+
+        .ai-list-item:hover::before {
+            opacity: 1;
+        }
+
+        .item-icon {
+            font-size: 36px;
+            width: 70px;
+            height: 70px;
+            background: #f0f7ff;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 25px;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .ai-list-item:hover .item-icon {
+            transform: scale(1.1);
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0 0 6px 0;
+        }
+
+        .item-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .item-arrow {
+            font-size: 24px;
+            color: #cbd5e0;
+            margin-left: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .ai-list-item:hover .item-arrow {
+            color: var(--secondary-color);
+            transform: translateX(5px);
+        }
+
+        /* 모바일 반응형 디자인 */
+        @media (max-width: 900px) {
+            .dashboard-wrapper {
+                flex-direction: column;
+                margin: 20px;
+                width: 100%;
+            }
+            .intro-panel {
+                padding: 40px 30px;
+                text-align: center;
+            }
+            .intro-panel::after {
+                display: none;
+            }
+            .intro-footer {
+                display: none;
+            }
+            .links-panel {
+                padding: 30px 20px;
+            }
+            .ai-list-item {
+                padding: 20px;
+            }
+            .item-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+                margin-right: 15px;
+            }
+            .item-title {
+                font-size: 17px;
+            }
+            .item-desc {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <div class="intro-panel">
+            <h1>철도검사처<br>스마트 AI 대시보드</h1>
+            <p>철도안전관리체계 검사관을 위한<br>맞춤형 AI 업무 지원 시스템입니다.<br>원하시는 AI 비서를 선택해주세요.</p>
+            
+            <div class="intro-footer">
+                &copy; 2026 한국교통안전공단 철도검사처
+            </div>
+        </div>
+
+        <div class="links-panel">
+            
+            <a href="https://gemini.google.com/gem/af7e0e72c3cf" class="ai-list-item" target="_blank">
+                <div class="item-icon">🚅</div>
+                <div class="item-content">
+                    <h3 class="item-title">정기검사 AI비서</h3>
+                    <p class="item-desc">정기검사 법령 및 매뉴얼 확인 / 시정조치서 초안 작성 지원</p>
+                </div>
+                <div class="item-arrow">➔</div>
+            </a>
+
+            <a href="https://gemini.google.com/gem/3960f85047a8" class="ai-list-item" target="_blank">
+                <div class="item-icon">👷🏻</div>
+                <div class="item-content">
+                    <h3 class="item-title">수시검사 AI비서</h3>
+                    <p class="item-desc">수시검사 규정 및 지침 안내 / 현장 점검 항목 빠른 검색</p>
+                </div>
+                <div class="item-arrow">➔</div>
+            </a>
+
+            <a href="https://gemini.google.com/gem/de01be3b83ed" class="ai-list-item" target="_blank">
+                <div class="item-icon">🚥</div>
+                <div class="item-content">
+                    <h3 class="item-title">수준평가 AI비서</h3>
+                    <p class="item-desc">안전관리 수준평가 지표 분석 / 평가 기준별 가이드라인 제공</p>
+                </div>
+                <div class="item-arrow">➔</div>
+            </a>
+
+            <a href="https://gemini.google.com/gem/a36196a655f1" class="ai-list-item" target="_blank">
+                <div class="item-icon">📖</div>
+                <div class="item-content">
+                    <h3 class="item-title">시정조치서 TEST</h3>
+                    <p class="item-desc">과거 시정조치 사례 분석 / 테스트 및 템플릿 검증</p>
+                </div>
+                <div class="item-arrow">➔</div>
+            </a>
+
+        </div>
+    </div>
+
+</body>
+</html>
