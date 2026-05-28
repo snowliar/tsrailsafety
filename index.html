@@ -91,12 +91,12 @@
         /* 오른쪽: AI 비서 리스트 영역 */
         .links-panel {
             flex: 1;
-            padding: 60px 50px;
+            padding: 40px 50px; /* 항목 추가로 인해 패딩 소폭 조정 */
             background: #fafcff;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 20px;
+            gap: 15px; /* 항목 간 간격 소폭 조정 */
         }
 
         /* 리스트 형태의 버튼 디자인 */
@@ -104,7 +104,7 @@
             display: flex;
             align-items: center;
             background: var(--card-bg);
-            padding: 20px 30px;
+            padding: 18px 30px;
             border-radius: 20px;
             text-decoration: none;
             color: var(--text-main);
@@ -139,15 +139,15 @@
         }
 
         .item-icon {
-            font-size: 36px;
-            width: 70px;
-            height: 70px;
+            font-size: 32px;
+            width: 60px;
+            height: 60px;
             background: #f0f7ff;
             border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 25px;
+            margin-right: 20px;
             flex-shrink: 0;
             transition: transform 0.3s ease;
         }
@@ -161,23 +161,23 @@
         }
 
         .item-title {
-            font-size: 19px;
+            font-size: 18px;
             font-weight: 700;
             color: var(--primary-color);
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
         }
 
         .item-desc {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-muted);
             margin: 0;
             line-height: 1.4;
         }
 
         .item-arrow {
-            font-size: 24px;
+            font-size: 20px;
             color: #cbd5e0;
-            margin-left: 20px;
+            margin-left: 15px;
             transition: all 0.3s ease;
         }
 
@@ -191,7 +191,7 @@
             .dashboard-wrapper {
                 flex-direction: column;
                 margin: 20px;
-                width: 100%;
+                width: 95%;
             }
             .intro-panel {
                 padding: 40px 30px;
@@ -207,19 +207,19 @@
                 padding: 30px 20px;
             }
             .ai-list-item {
-                padding: 20px;
+                padding: 15px;
             }
             .item-icon {
-                width: 60px;
-                height: 60px;
-                font-size: 30px;
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
                 margin-right: 15px;
             }
             .item-title {
-                font-size: 17px;
+                font-size: 16px;
             }
             .item-desc {
-                font-size: 13px;
+                font-size: 12px;
             }
         }
     </style>
@@ -242,7 +242,7 @@
                 <div class="item-icon">🚅</div>
                 <div class="item-content">
                     <h3 class="item-title">정기검사 AI비서</h3>
-                    <p class="item-desc">정기검사 수행 업무 전반 지원 / 정기검사 법령 및 매뉴얼 등 검사 필수 정보 제공</p>
+                    <p class="item-desc">정기검사 수행 업무 전반 지원 / 법령 및 매뉴얼 필수 정보 제공</p>
                 </div>
                 <div class="item-arrow">➔</div>
             </a>
@@ -257,7 +257,7 @@
             </a>
 
             <a href="https://gemini.google.com/gem/de01be3b83ed" class="ai-list-item" target="_blank">
-                <div class="item-icon">🚥</div>
+                <div class="item-icon">📈</div>
                 <div class="item-content">
                     <h3 class="item-title">수준평가 AI비서</h3>
                     <p class="item-desc">안전관리 수준평가 지표 분석 / 평가 기준별 가이드라인 제공</p>
@@ -269,7 +269,16 @@
                 <div class="item-icon">📖</div>
                 <div class="item-content">
                     <h3 class="item-title">시정조치서 전용 봇</h3>
-                    <p class="item-desc">검사 지적사항에 따른 시정조치서 작성 지원 / 템플릿 검증</p>
+                    <p class="item-desc">검사 지적사항 기반 시정조치서 초안 작성 및 템플릿 검증</p>
+                </div>
+                <div class="item-arrow">➔</div>
+            </a>
+
+            <a href="#" class="ai-list-item" target="_blank">
+                <div class="item-icon">📑</div>
+                <div class="item-content">
+                    <h3 class="item-title">적합성입증자료 검토</h3>
+                    <p class="item-desc">기술기준 적합성 입증자료 분석 / 증빙 서류 누락 및 부합성 검토</p>
                 </div>
                 <div class="item-arrow">➔</div>
             </a>
@@ -278,6 +287,4 @@
     </div>
 
 </body>
-
 </html>
-
