@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>철도안전 SMS 통합 스마트 점검 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', sans-serif; letter-spacing: -0.02em; }
+        
+        /* 프리미엄 스크롤바 디자인 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* PDF 인쇄 및 저장 전용 스타일 가이드 */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; color: black !important; padding: 0 !important; }
+            .print-page-break { page-break-inside: avoid; }
+            .main-container { max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+            .card-shadow { box-shadow: none !important; border: 1px solid #e2e8f0 !important; background-color: white !important; }
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-100 min-h-screen flex flex-col antialiased">
+
+    <header class="bg-[#0b0f19]/90 backdrop-blur-md text-white shadow-xl sticky top-0 z-50 border-b border-slate-800/80 px-6 py-4 no-print">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex items-center space-x-3.5">
+                <div class="bg-gradient-to-tr from-indigo-600 to-blue-500 p-2.5 rounded-xl text-white font-black text-sm tracking-wider shadow-lg shadow-indigo-500/20">SMS</div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">철도안전 통합 스마트 점검 시스템</h1>
+                    <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Railway Safety Management System Digital Auditor</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
+                    <span>📊 사고보고서 엑셀추출</span>
+                </button>
+                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
+                    <span>🖨️ PDF 보고서 인쇄</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        
+        <div class="hidden print:block text-center border-b-4 border-slate-900 pb-4 mb-6 text-slate-900">
+            <h1 class="text-2xl font-black" id="print-main-title">철도 비상사태 대응체계 SMS 정밀 진단 리포트</h1>
+            <p class="text-xs text-slate-500 mt-1">본 문서는 철도안전법 제7조 등에 의거하여 발생 사고 유형에 매핑되는 체크리스트 항목만 전수 진단한 최종 현장조치 서류입니다.</p>
+        </div>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-[#131c31] rounded-2xl border border-slate-800 p-5 space-y-4 shadow-xl flex flex-col justify-between card-shadow">
+                <div class="space-y-4">
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
+                        <span class="w-1.5 h-3.5 bg-indigo-500 rounded-full mr-2 block"></span>사고 정보 및 유형 설정
+                    </h2>
+                    
+                    <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/80 no-print">
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">🚨 현장 사고장애 유형 선택</span>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button type="button" onclick="switchMasterCategory('fire')" id="btn-choice-fire" class="py-2.5 px-1 text-center rounded-lg text-xs font-black transition-all bg-indigo-600 text-white shadow-md border border-indigo-500">🔥 화재</button>
+                            <button type="button" onclick="switchMasterCategory('derailment')" id="btn-choice-derailment" class="py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 border border-transparent">🛤️ 탈선</button>
+                            <button type="button" onclick="switchMasterCategory('injury')" id="btn-choice-injury" class="py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 border border-transparent">👷 직원사상</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">발생 사고건명 / 점검 과제명</label>
+                            <input type="text" id="meta-name" placeholder="예: 역사 내 ESS 배터리 화재 초동조치 정밀점검" onchange="saveMeta()" class="w-full text-xs border border-slate-700 bg-slate-900/80 text-white rounded-lg px-3 py-2.5 font-semibold focus:outline-none focus:border-indigo-500 transition-all">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">사고 발생 / 점검 일자</label>
+                                <input type="date" id="meta-date" onchange="saveMeta()" class="w-full text-xs border border-slate-700 bg-slate-900/80 text-white rounded-lg px-3 py-2.5 font-semibold focus:outline-none focus:border-indigo-500 transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">책임 현장 검사관</label>
+                                <input type="text" id="meta-inspector" placeholder="검사관 성함 입력" onchange="saveMeta()" class="w-full text-xs border border-slate-700 bg-slate-900/80 text-white rounded-lg px-3 py-2.5 font-semibold focus:outline-none focus:border-indigo-500 transition-all">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-[#131c31] rounded-2xl border border-slate-800 p-5 flex flex-col justify-between shadow-xl card-shadow">
+                <div class="flex justify-between items-start">
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
+                        <span class="w-1.5 h-3.5 bg-indigo-500 rounded-full mr-2 block"></span>선택 사고장애 세션 실시간 통계 (50개 필수 기준)
+                    </h2>
+                    <button onclick="resetAllData()" class="text-xs text-slate-500 hover:text-rose-400 font-semibold transition-colors no-print">🔄 데이터 전체 초기화</button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-3">
+                    <div class="bg-slate-900/60 border border-slate-800 p-3.5 rounded-xl text-center">
+                        <span class="text-[11px] font-bold text-slate-400 block uppercase">현장 준수율</span>
+                        <span class="text-2xl font-black text-indigo-400 mt-1 block" id="total-compliance">0%</span>
+                    </div>
+                    <div class="bg-emerald-950/20 border border-emerald-900/30 p-3.5 rounded-xl text-center">
+                        <span class="text-[11px] font-bold text-emerald-500 block">적합 (PASS)</span>
+                        <span class="text-2xl font-bold text-emerald-400 mt-1 block" id="count-pass">0</span>
+                    </div>
+                    <div class="bg-rose-950/20 border border-rose-900/30 p-3.5 rounded-xl text-center">
+                        <span class="text-[11px] font-bold text-rose-600 block">부적합 (CRITICAL)</span>
+                        <span class="text-2xl font-bold text-rose-400 mt-1 block" id="count-fail">0</span>
+                    </div>
+                    <div class="bg-slate-900/30 border border-slate-800/80 p-3.5 rounded-xl text-center">
+                        <span class="text-[11px] font-bold text-slate-500 block">미진행 문항</span>
+                        <span class="text-2xl font-bold text-slate-400 mt-1 block" id="count-pending">50</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 border-t border-slate-800 pt-3" id="theme-progress-zone">
+                    </div>
+            </div>
+        </section>
+
+        <div class="flex flex-wrap gap-1.5 p-1.5 bg-[#131c31] border border-slate-800 rounded-xl no-print" id="sub-theme-tabs">
+            </div>
+
+        <section class="space-y-3" id="checklist-render-area">
+            </section>
+
+    </main>
+
+    <footer class="bg-[#0b0f19] text-slate-600 text-xs py-5 text-center border-t border-slate-900/60 mt-12 no-print">
+        <p class="font-bold text-slate-500">철도안전관리체계(SMS) 사고장애 대응 독자 세션 오디터 모듈</p>
+        <p class="text-[10px] text-slate-600 mt-1">본 시스템은 외부 서버 데이터 아웃풋 없이 완전히 로컬 샌드박스 보안 저장 방식으로 운용됩니다.</p>
+    </footer>
+
+    <script>
+        // 전역 데이터 모델 정의 (150선 마스터 텍스트 데이터 완전 이식 보장)
+        const rawChecklistData = {
+            fire: {
+                title: "화재 위험성 예방 검사",
+                themes: {
+                    t1: { name: "SMS 제도적 부합성", items: ["안전관리체계(SMS) 내에 배터리 기반 설비(전기차 충전소, ESS, 모터카 등)의 화재 위험성을 반영한 자체 안전 규정 및 절차가 수립되어 있는가?", "리튬 이온 배터리 도입 및 운영에 따른 화재 확산 리스크가 위험도평가(Risk Assessment) 보고서에 정량·정성적으로 반영되었는가?", "배터리 설비 밀집 구역별 화재안전관리 책임자 및 대리인이 명확히 지정되고 현장에 공고되어 있는가?", "배터리 용량 증설이나 설비 교체 시 철도안전관리체계 변경승인 또는 변경신고 절차를 적법하게 이행하였는가?", "연간 자체 안전점검 및 내부 예방진단 시 배터리 화재 취약 구역(지하 역사, 차량기지 등)이 점검 대상에 포함되었는가?", "배터리 설비 유지보수 위탁(외주) 업체에 대한 안전 보건 조치 및 화재 예방 독려 조치가 SMS 규정대로 이행되고 있는가?", "소방시설법 및 철도안전법 기준에 따른 배터리 전용 소화설비의 법적 구비 요건을 충족하고 있는가?", "배터리 관리 시스템(BMS)의 이상 징후(과충전, 과열 등) 기록 데이터가 법정 보유 기간 동안 안전하게 보존되고 있는가?", "도입된 배터리 설비 및 충전장치가 국가인증(KC) 등 철도용품 또는 공인기관의 기술기준에 적합함을 입증하는 서류가 구비되어 있는가?", "타 기관의 배터리 화재 사고 사례 분석을 통해 자체 규정 및 시스템을 보완한 이력이 존재하는가?"] },
+                    t2: { name: "비상대응계획(EAP)", items: ["비상대응계획(EAP) 내에 '지하 구역 리튬배터리 화재' 등 최악의 상황을 가정한 세부 대응 시나리오가 포함되어 있는가?", "배터리 열폭주 화재의 특성(대량의 물 필요 등)을 고려해 관할 소방서와의 '합동 특수진화 및 용수 확보' 협조 체계가 EAP에 명시되어 있는가?", "화재 발생 초기 단계에서 종합관제실, 현장 책임자, 소방서로 이어지는 비상 연락 및 보고 계통이 5분 이내 작동하도록 설계되었는가?", "배터리 화재 시 발생하는 유독가스로부터 유도등, 제연설비가 정상 작동하여 승객 및 직원의 대피 동선이 확보되는가?", "초기 열폭주 전이를 막기 위한 '초동 진화 골든타임(예: 3~5분 이내)'이 구체적으로 정의되어 있는가?", "역사 및 차량 내 재난방송 시스템을 통해 배터리 화재 특성에 맞는 임무(질식 예방, 신속 대피)가 즉시 전파될 수 있는가?", "화재 진압 후 유독가스 배출, 오염수 처리, 전력 계통 복구 등 사후 수습 계획이 EAP 내에 마련되어 있는가?", "소방 유관기관과의 상시 비상연락망(핫라인)은 최신화되어 있으며 주기적으로 수신 상태를 점검하는가?", "장애인, 노약자 등 교통약자가 배터리 화재 구역에 고립될 경우를 대비한 별도의 구호 임무가 EAP에 지정되어 있는가?", "신규 배터리 장비 도입 시 비상대응계획서의 관련 부록 및 가이드라인이 즉시 개정·반영되는가?"] },
+                    t3: { name: "현장조치행동매뉴얼(SOP)", items: ["현장 근무자(역무원, 로컬관제, 보안관 등)가 배터리 화재 발생 시 자신의 개인별 행동 임무를 정확히 인지하고 있는가?", "일반 화재와 다른 리튬배터리 열폭주(Thermal Runaway) 시 진압 불가 판단 및 대피 전환 기준이 SOP에 명시되어 있는가?", "충전 중인 전기차/배터리 화재 시 충전 장치의 메인 전원(서킷 브레이커)을 즉시 차단하는 절차가 SOP에 구체화되어 있는가?", "배터리 폭발 및 파편 비산 위험에 대비하여 현장 통제선(폴리스라인 등) 설정 및 일반인 접근 차단 구역 반경이 설정되어 있는가?", "유독가스 확산을 막기 위해 지하 역사 및 터널 내 송배풍기(제연 팬)를 양압/음압으로 긴급 제어하는 조치 매뉴얼이 작동 가능한가?", "불산, 일산화탄소 등 치명적 유독가스에 대응하기 위해 현장 조치자가 공기호흡기 및 방진·방독 마스크를 즉시 착용하도록 규정하고 있는가?", "차량기지 및 지상 주차장 내 배터리 화재 시 질식소화포를 전개하여 인근 차량으로의 연쇄 화재 확산을 방지하는 절차가 있는가?", "열차 내 배터리 화재 발생 시, 기관사가 종합관제실의 지시에 따라 최인근 역사에 비상 정차하고 출입문을 개방하는 절차가 매뉴얼화되어 있는가?", "소방대 도착 시 현장 지휘권을 매끄럽게 인수인계하고, 배터리 설비의 정확한 위치와 전력 공급 상태 정보를 제공하는 매뉴얼이 준비되어 있는가?", "현장 상황 종료 후 초동 조치 적정성을 기록하고 서식을 작성하여 본사에 보고하는 절차가 정립되어 있는가?"] },
+                    t4: { name: "현장 시설·방재 인프라", items: ["배터리 화재(D급 금속화재 또는 리튬배터리 전용 소화기)에 대응 가능한 특수 소화기가 해당 구역에 적정 수량 배치되어 있는가?", "ESS 및 대형 배터리 룸의 자체 관리 시스템(BMS)이 종합관제실(또는 방재실) 모니터링 시스템과 실시간 연동되어 상시 감시되는가?", "배터리 열폭주 전조 증상(오프가스 배출 등)을 조기에 감지할 수 있는 특수 감지기(일산화탄소 또는 가스 감지기)가 설치되어 있는가?", "배터리 보관실 및 전력 공급실이 다른 철도 주요 시설물(신호실, 변전실 등)과 내화구조 벽체로 완벽히 방화 구획되어 있는가?", "배터리 화재 시 냉각 소화가 가능하도록 대량의 주수가 가능한 스프링클러(또는 미분무수 소화설비)가 정상 작동 상태를 유지하는가?", "철도 부지 내 설치된 전기차 충전소 인근에 소화수조 구비 또는 외부 확산 방지용 방화벽이 설치되어 있는가?", "방재실 또는 현장 대피소에 소방대원용 공기호흡기 충전 상태 및 예비 실린더, 유독가스 차단용 보호복이 기준대로 비치되어 있는가?", "배터리 화재로 인한 대규모 정전 시에도 작동할 수 있는 비상전원 공급 장치(UPS) 및 비상조명등이 유효하게 작동하는가?", "배터리 진압을 위해 대량의 방수(물뿌림)를 시행할 경우를 대비하여 지하 구역의 집수정 및 배수 펌프 가동 상태가 양호한가?", "배터리가 장착된 장비(PM, 물류 카트 등)의 무단 방치 및 불법 충전을 금지하는 전용 보관 구역이 지정되어 관리되는가?"] },
+                    t5: { name: "교육·훈련 및 상시 점검", items: ["철도 종사자 및 유지보수 직원을 대상으로 일반 화재 교육과 구별되는 '리튬 이온 배터리 화재 특성 및 대피 요령' 교육이 연 1회 이상 실시되었는가?", "가상의 배터리 열폭주 상황을 설정하여 인근 소방서와 무선통신 공유 및 소화 용수 전개 등의 합동 소방훈련을 시행하였는가?", "야간이나 취약 시간대에 관제사와 현장 직원의 초동 전파 및 상황 인지 능력을 점검하는 불시 도상/현장 훈련 이력이 있는가?", "시행된 비상대응훈련에 대한 평가 보고서가 작성되었으며, 도출된 문제점(예: 장비 미숙지, 소통 불량 등)의 개선 조치가 완료되었는가?", "시설·차량 분야의 일일 및 주간 순회 점검 일지에 배터리 설비 외관 상태(배부름 현상, 누액 여부 등) 점검 항목이 명시되어 있는가?", "배터리 충전 시설 및 주요 전력 변환 장치에 대해 열화상 카메라 등을 활용한 주기적인 발열 체크 점검을 수행하고 있는가?", "외주 청소·경비·유지보수 인력에게도 배터리 화재 발생 시 신속한 신고 및 대피 요령에 대한 안전 보건 교육이 제공되었는가?", "현장 안내데스크, 방재실, 초소 등에 리튬배터리 화재 발생 시 1장으로 요약된 '원페이지 매뉴얼(Action Sheet)'이 가시성 있게 비치되어 있는가?", "배터리 충전 중 과열이나 소규모 스파크 발생 등 '아차사고(Near Miss)' 사례를 수집하고 재발방지대책을 검토·공유하였는가?", "최고안전책임자(CSO) 주관 하에 배터리 화재 예방을 위한 예산 배정 및 방재 장비 구매가 계획대로 집행되고 있는가?"] }
+                }
+            },
+            derailment: {
+                title: "열차 탈선 사고 철저 예방",
+                themes: {
+                    t1: { name: "SMS 제도적 부합성", items: ["철도안전관리체계(SMS)에 명시된 선로·궤도 분야의 정기 점검 주기 및 유지보수 기준을 철저히 준수하여 이행하고 있는가?", "차량 바퀴(차륜)의 마모 상태, 대차 고정 상태 등 탈선과 직결되는 핵심 검수 항목이 SMS 정비 지침에 누락 없이 반영되어 있는가?", "선로 분기기 교체, 급곡선 구간 선로 개량 등 탈선 위험도가 높은 작업에 대해 사전 위험도평가를 적법하게 시행하였는가?", "열차 운행 속도 향상이나 중량 화물열차 투입 시 선로 부담에 따른 탈선 리스크를 고려하여 SMS 변경관리 승인/신고를 거쳤는가?", "탈선 사고의 주요 원인인 선로전환기(분기기)의 잠금 장치 및 밀착 검사 절차가 자체 안전 규정에 구체적으로 정립되어 있는가?", "선로 자갈(도상), 침목, 레일 등 주요 궤도 용품 도입 시 철도용품 형식승인 등 법정 적합성 입증 서류를 확보하고 있는가?", "연간 자체 안전심사 시 상습 연약지반, 터널 출입구 붕괴 위험지 등 탈선 취약 개소에 대한 특별 점검 실적이 존재하는가?", "폭염(레일 온도 상승), 폭우(도상 유실) 등 이상 기후 시 탈선 예방을 위한 열차 서행 및 운행 중지 기준이 SMS에 명시되어 있는가?", "선로 정비 작업을 감독하는 작업책임자와 철도차량 운전 인력의 자격, 면허, 신체검사 적격 여부가 법적 기준을 충족하는가?", "과거 타 기관이나 자체적으로 발생했던 탈선·경도 사고의 원인 분석 결과가 안전 규정 및 매뉴얼에 반영되어 보완되었는가?"] },
+                    t2: { name: "비상대응계획(EAP)", items: ["비상대응계획(EAP) 내에 '고속열차 터널 내 탈선', '화물열차 위험물 적재 차량 탈선' 등 유형별 세부 시나리오가 구비되어 있는가?", "탈선 발생 즉시 인접 선로를 운행하는 타 열차에 대한 방호 지시(무선 공보, 신호 제어)가 1분 이내에 자동으로 이루어지는가?", "탈선 상황 인지 즉시 종합관제실, 철도특별사법경찰대, 국토교통부(철도안전감독관)로 이어지는 비상 연락 체계가 정비되어 있는가?", "열차 탈선으로 변형된 차체 내에서 승객들이 비상출입문 및 비상창문을 통해 안전한 선로 밖으로 대피할 수 있는 동선 유도 계획이 EAP에 있는가?", "대형 탈선 사고 시 중상자 구조를 위한 119 구급대 및 대형 구난 크레인 진입을 위한 인근 도로 연계 지도가 EAP에 구비되어 있는가?", "탈선으로 단전된 열차 내 고립 승객을 위한 비상 조명 장치, 음용수, 구급 약품 등의 방재 물품이 현장에 즉시 보급될 수 있는가?", "탈선 차량 견인, 전차선 복구, 레일 재시공 등 선로 복구반의 단계별 임무와 우선순위가 EAP에 명확히 명시되어 있는가?", "사고 현장의 수습 본부와 종합관제실 간의 무선 통신(LTE-R, TRS 등) 사각지대가 없도록 예비 통신 장비가 EAP 계획대로 비치되어 있는가?", "탈선 차량의 전복 및 가공전차선 단선에 따른 감전 위험을 예방하기 위해 선로 전원 긴급 차단(단전) 절차가 EAP에 포함되어 있는가?", "선로 배선 변경이나 노선 연장 시 비상대응계획서의 역간 거리, 비상 대피로 위치 정보가 즉시 업데이트되는가?"] },
+                    t3: { name: "현장조치행동매뉴얼(SOP)", items: ["기관사가 탈선 충격 인지 시 즉시 비상제동을 체결하고, 관제실 보고 및 무선방호장치를 즉각 작동하도록 SOP에 규정되어 있는가?", "사고 현장에 가장 먼저 도착하는 역장 또는 로컬관제원로서의 초기 현장통제관 권한과 임무를 명확히 숙지하고 있는가?", "구조 요원 및 직원이 현장에 진입하기 전, 해당 구간 전차선의 단전 및 접지 걸이 체결 상태를 확인하는 절차가 SOP에 구체화되어 있는가?", "항공·철도사고조사위원회의 정확한 원인 조사를 위해 사고 초기 차륜 마찰 흔적(점착흔), 분기기 상태 등의 현장을 보존하는 절차가 있는가?", "열차 탈선으로 인한 불안감을 해소하기 위해 승무원이 차내 방송 장치(비상 배터리 가동)를 통해 대피 및 대기 안내를 즉시 실시하는가?", "야간 탈선 현장 진입 시 조치자들이 안전모, 안전조끼, 휴대용 손전등, 선로 방호 장비(단락용 동선 등)를 필수 휴대하도록 규정하는가?", "다량의 차량이 연결된 열차의 일부 탈선 시, 나머지 정상 차량의 이탈을 막기 위해 차륜 구름막이(고임목)를 즉시 체결하는 절차가 있는가?", "탈선으로 인한 운행 중단 시, 버스·택시 등 연계 교통수단을 투입하여 승객을 인근 역으로 수송하는 행동 절차가 SOP에 명시되어 있는가?", "지역본부 수습대책본부 및 소방서 지휘대 도착 시 현장 통제권과 상황 브리핑을 매끄럽게 연계하는 인수인계 절차가 준비되었는가?", "탈선 차량 구난 및 선로 시운전 완료 후 최종 운행 재개 승인을 관제실과 문서화하여 보고하는 서식이 구비되어 있는가?"] },
+                    t4: { name: "현장 시설·방재 인프라", items: ["선로 내부의 미세 균열(피로파괴)을 감지하는 초음파 레일 탐상 장비의 정기 가동 실적 및 결함 보수 기록이 양호한가?", "궤도검측차 등을 활용해 좌우틀임, 수평틀임, 면틀임 등 탈선을 유발하는 궤도 틀어짐 항목을 주기적으로 측정·관리하는가?", "차량기지 내 차륜 전삭기(바퀴를 깎는 장비) 및 초음파 탐상 장비를 통해 차륜의 균열 및 마모도를 한계치 이내로 제어하고 있는가?", "열차 운행 중 차축의 과열로 인한 차축 고착(탈선 원인)을 예방하기 위해 선로 변에 설치된 차축온도검지장치(Hot Box Detector)가 정상 작동하는가?", "선로전환기가 완전히 밀착되지 않았을 때 열차 진입을 원천 차단하는 분기기 밀착검지장치 및 신호 연동 시스템 상태가 양호한가?", "낙석이나 토사 유실로 인한 탈선을 예방하기 위해 절토사면 등에 설치된 낙석방지책 및 지장물검지장치의 인터록(Interlock)이 유효한가?", "차량기지 내에 탈선 차량을 잭업(Jack-up)할 수 있는 유압 잭, 탈선 복구용 기장 장비, 가부기 등이 기준 수량만큼 확보되어 있는가?", "교량 위나 급곡선 구간 등 탈선 시 대형 참사로 이어질 수 있는 고위험 개소에 탈선방지가드레일이 적정하게 설치되어 있는가?", "탈선 직전의 속도, 제동 체결 압력, ATS/ATC 신호 수신 상태를 확인할 수 있는 차량 운행 정보 저장 장치(블랙박스)의 관리가 철저한가?", "동절기 적설 및 결빙으로 인한 분기기 오작동을 막기 위해 설치된 히팅장치(융설 장치)의 가동 상태를 주기적으로 점검하는가?"] },
+                    t5: { name: "교육·훈련 및 상시 점검", items: ["선로 복구반 및 차량 구난반을 대상으로 연 2회 이상 실제 탈선 차량을 복구하는 야간·현장 합동 기동 훈련을 실시하고 있는가?", "기관사 및 관제사를 대상으로 신호 위반, 분기기 부동 등 탈선 유발 상황 발생 시의 조치 요령에 대한 시뮬레이터 교육을 이행하는가?", "OO역 분기기 진입 중 열차 탈선과 같은 불시 도상 훈련을 통해 초동 전파 및 방호조치 이행 상태를 평가하는가?", "복구 훈련 시 도출된 문제점(예: 구난 장비 성능 부족, 유관기관 소통 지연 등)에 대한 보완책이 차기 계획에 반영되었는가?", "선로 감독자가 규정된 주기에 따라 선로를 직접 도보로 순회하며 레일 체결 볼트 풀림, 침목 균열 상태 등을 눈으로 확인하는가?", "선로 자갈 자갈치기(다지기) 작업 후 선로의 안정화 기간 동안 서행 운전을 철저히 감독 및 기록 관리하는가?", "선로 보수 작업을 수행하는 협력업체 직원들에게 선로 무단 진입 방지 및 작업 전 안전미팅(TBM) 시 탈선 예방 주의사항을 교육하는가?", "상습 궤도틀임 발생 구역을 '특별관리 선로'로 지정하고 내부 점검 주기를 단축하여 집중 관리하고 있는가?", "차륜 미세 흠집 발견, 선로전환기 미세 불일치 등 탈선으로 이어질 뻔한 아차사고 사례를 수집하고 현장 직원에 공유하는가?", "최고안전책임자(CSO) 및 경영진이 분기별로 야간 선로 정비 현장을 직접 방문하여 안전 수칙 준수 여부를 지도·점검하는가?"] }
+                }
+            },
+            injury: {
+                title: "작업장 중대재해 제로화",
+                themes: {
+                    t1: { name: "SMS 제도적 부합성", items: ["철도안전관리체계(SMS) 내에 중대재해처벌법 및 산업안전보건법 기준을 반영한 '선로 작업 안전보건 관리 규정'이 명확히 수립되어 있는가?", "선로 보수, 전차선 정비, 차량 검수 등 현장 작업 착수 전, 근로자가 참여하는 상시·정기 위험성평가를 법적 기준대로 실시하였는가?", "본사 및 지역본부별 안전보건관리책임자, 관리감독자, 안전관리자가 선임되어 있으며 해당 임무를 충실히 수행하고 있는가?", "분기별 산업안전보건위원회를 개최하여 현장 직원의 사상 사고 예방을 위한 안건을 심의·의결하고 실제 현장에 반영하고 있는가?", "외주 협력업체(도급, 용역, 위탁) 직원의 사상 예방을 위해 '도급 승인 절차' 및 '안전보건 협의체' 운영 의무를 철저히 이행하는가?", "근로자가 위험 상황을 인지했을 때 즉시 작업을 중지할 수 있는 '작업중지권' 행사의 절차와 불이익 금지 조항이 명시되어 있는가?", "매월 규정된 '안전점검의 날' 행사를 통해 현장 수리실, 기계실 등의 유해·위험요인 발굴 및 개선 실적을 보유하고 있는가?", "과로로 인한 인적 오류 사상 사고를 막기 위해 철도종사자(운전, 관제)의 법정 연속 휴식 시간 및 최대 근무 시간이 준수되는가?", "현장 직원에게 지급되는 절연화, 안전모, 안전대 등 안전 보호구가 한국산업안전보건공단(KCs) 인증 제품인지 확인 관리하는가?", "과거 발생한 직원 부상 및 아차사고에 대해 산업재해조사표를 적법하게 작성하고 고용노동부에 보고 및 개선 조치하였는가?"] },
+                    t2: { name: "비상대응계획(EAP)", items: ["비상대응계획(EAP) 내에 '선로 작업 중 열차 접촉', '차량 검수 중 고압선 감전', '추락' 등 직원 중대재해 발생 시 대응 시나리오가 구비되어 있는가?", "선로 작업자 부상 상황 접수 즉시 해당 구간을 통과하는 모든 열차에 대기 지시 또는 무선 공보를 전파하는 시스템이 EAP에 잡혀있는가?", "선로 변 등 접근이 어려운 철도 부지 내에서 환자 발생 시, 최인근 응급의료기관 지정 및 닥터헬기 착륙장, 구급차 진입로가 명시되어 있는가?", "직원 사상 사고 발생 시 5분 이내에 종합관제실, 경영진, 고용노동부, 국토교통부에 비상 보고되는 시스템이 구축되어 있는가?", "과다출혈, 심정지 등 골든타임(4분 이내)이 필수적인 상황에 대응하기 위해 현장 작업 조별로 응급처치(CPR) 전담 조치자가 지정되어 있는가?", "현장 상주 직원 및 협력업체 관리자의 비상 연락망, 관할 소방서·경찰서의 연락처가 EAP 부록에 최신 상태로 유지되는가?", "감전 사고 발생 시 구조자가 추가 감전되지 않도록 해당 구간 배전반을 원격 차단하는 긴급 전력 차단 절차가 EAP에 포함되어 있는가?", "사망 등 중대재해 발생 시 현장 통제 및 목격자 격리, 트라우마 방지를 위한 초기 현장 지휘 본부 구성 절차가 마련되어 있는가?", "구호 조치 시 현장 작업조와 로컬관제, 119 대원 간의 무선 통신 주파수 채널 지정 및 소통 절차가 EAP에 명시되어 있는가?", "반기별 EAP 가동 분석을 통해 직원 사상 발생 시 구급대 도착까지의 소요 시간을 모니터링하고 단축 방안을 마련하는가?"] },
+                    t3: { name: "현장조치행동매뉴얼(SOP)", items: ["선로 진입 전 현장 조장 주관으로 당일 운행 열차 시간표 확인, 위험 요인 고지, 보호구 점검(TBM)을 필수 실시하도록 SOP에 규정되어 있는가?", "야외 선로 작업 시 오직 열차 감시 업무만 전담하는 별도의 '열차감시원'이 무선기와 호각, 전동 깃발을 휴대하여 적정 배치되어 있는가?", "열차 접근 경보 발생 시 작업자가 즉시 선로 밖으로 벗어날 수 있는 지정 대피 공간(대피소)이 사전 확보되고 상시 비워져 있는가?", "관제실로부터 해당 선로에 대한 '열차 운행 차단 승인'을 문서나 시스템으로 확실히 인지한 후 작업을 개시하는 절차가 작동하는가?", "단독 작업 시 발생할 수 있는 고립 및 사상 예방을 위해 차량 입환, 순회 점검 등 위험 작업 시 '2인 1조 근무 원칙'을 엄격히 준수하는가?", "선로 작업 구간 양단에 열차 진입을 전기적으로 차단하는 '단락용 동선'을 레일에 철저히 체결하고 작업을 진행하는가?", "전차선(25,000V) 인근 작업 시 전원 차단 후 잔류 전하를 대지로 방전시키는 '접지 걸이 체결' 조치가 완벽히 이행되는가?", "지하 맨홀, 정화조, 터널 내부 내 밀폐공간 진입 전 산소 농도 및 유해가스를 측정하고 환기 팬을 가동하는 절차가 SOP에 구체화되어 있는가?", "사상 사고 발생 시 노동청 조사를 위해 현장을 임의로 훼손하지 않고 현장 사진 채증 후 즉시 상황 보고서를 작성하는 절차가 있는가?", "동료 직원의 사상 사고를 목격한 현장 조치자 및 기관사를 즉시 업무에서 배제하고 심리 안정(트라우마 치료) 프로그램을 연계하는가?"] },
+                    t4: { name: "현장 시설·안전 인프라", items: ["작업 구간에 열차가 접근하면 대형 경보음과 경광등으로 근로자에게 알리는 '열차접근경보장치(웨어러블 밴드 포함)'가 정상 작동하는가?", "상시 열차가 운행하는 선로와 보수 작업 구역을 물리적으로 격리하는 이동식 안전펜스 또는 방호벽이 적정하게 설치되는가?", "야간 작업 시 시야 확보 불량으로 인한 접촉 사고를 예방하기 위해 고성능 이동식 LED 투광기 및 개인 안전등을 상시 구비하고 있는가?", "교량 상부 선로 정비 및 차량 상부 검수대 작업 시 추락 사상을 방지하기 위한 추락방지망 및 안전대 체결용 와이어(라이프라인) 상태가 양호한가?", "차량기지 내 크레인, 전삭기, 프레스 등 회전 기계 장치 부위에 신체 끼임 사고를 막는 방호 커버 및 긴급정지버튼(E-Stop)이 유효한가?", "역무실, 차량기지 분소, 작업실 등 직원 상주 구역마다 구급약품 세트와 자동심장충격기(AED)가 상시 가동 상태로 비치되어 있는가?", "고압주의, 추락위험, 개구부 주의 등 현장 위험 개소마다 산업안전보건법 기준에 부합하는 안전·보건표지판이 부착되어 있는가?", "전력 분야 직원들이 사용하는 전기 절연봉, 절연장갑 등의 내전압 시험을 정기적으로 실시하여 성적서를 관리하고 있는가?", "차량 검수고 내 고위험 작업 구역을 비추는 CCTV 영상이 방재실이나 관리자 모니터에 실시간 연계되어 상시 모니터링되는가?", "가속도 센서와 통신 모듈이 탑재되어 직원의 쓰러짐이나 추락을 실시간 감지해 관리자에게 전송하는 스마트 안전 장비가 도입되어 관리되는가?"] },
+                    t5: { name: "교육·훈련 및 상시 점검", items: ["분기별 6시간 이상 실시해야 하는 현장 직원의 '산업안전보건 정기교육' 및 신규 채용자 교육이 누락 없이 이행되고 기록 관리되는가?", "감전 재해자 구조 훈련, 밀폐공간 구조 크레인 가동 훈련 등 매년 현장 맞춤형 구조 가상 실습 훈련을 연 1회 이상 실시하는가?", "직원이 현장의 위험 요소를 직접 스마트폰 등으로 신고하고 즉시 조치하는 '안전제안제도'가 활성화되어 있는가?", "현장 팀장(관리감독자)이 매일 작업 현장을 순회하며 직원의 안전모 턱끈 체결, 안전대 미체결 등 불안전한 행동을 구두 지도·기록하는가?", "우리 기관 부지 내에서 작업하는 외주 협력업체 직원들에게도 동일한 수준의 철도 격리 작업 안전 교육 및 시청각 자료를 제공하는가?", "차량 세척 및 정비에 사용되는 유해 화학물질 보관소에 물질안전보건자료(MSDS)가 비치되어 있으며 직원이 경고 표지를 인지하고 있는가?", "야간 교대근무자(특수건강진단 대상) 및 현장 근로자의 정기 건강검진 수검률이 100%를 유지하고 있으며 사후 관리가 이뤄지는가?", "중량물 취급 작업이나 고소 작업 시 사전에 '작업계획서'를 작성하고 관리감독자의 최종 서명 승인을 득한 후 작업을 개시하는가?", "부서별 무재해 목표 달성 현황을 게시하여 직원들의 자발적인 안전 문화 분위기 조성을 독려하고 있는가?", "부서별 성과 평가(BSC) 시 '직원 사상 사고 발생률' 및 '안전 수칙 위반 적발 건수'를 감점 지표로 엄격히 반영하여 관리하고 있는가?"] }
+                }
+            }
+        };
+
+        // 전역 상태 통합 파라미터 (데이터가 깨지지 않는 통합 버전 키 매핑 적용)
+        let currentCategory = 'fire'; 
+        let currentSubTheme = 't1';
+        let savedStates = JSON.parse(localStorage.getItem('railway_sms_v4')) || {};
+
+        window.onload = function() {
+            loadMeta();
+            updateMasterSelectorUI();
+            renderSubTabs();
+            renderChecklist();
+            calculateCompliance();
+        };
+
+        // 메타 데이터 및 상태 복원
+        function loadMeta() {
+            document.getElementById('meta-name').value = savedStates['meta_name'] || '';
+            document.getElementById('meta-date').value = savedStates['meta_date'] || new Date().toISOString().split('T')[0];
+            document.getElementById('meta-inspector').value = savedStates['meta_inspector'] || '';
+            if (savedStates['active_category']) {
+                currentCategory = savedStates['active_category'];
+            }
+        }
+
+        function saveMeta() {
+            savedStates['meta_name'] = document.getElementById('meta-name').value;
+            savedStates['meta_date'] = document.getElementById('meta-date').value;
+            savedStates['meta_inspector'] = document.getElementById('meta-inspector').value;
+            savedStates['active_category'] = currentCategory;
+            localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
+        }
+
+        // 프리미엄 콤팩트 3단 셀렉터 UI 제어 함수
+        function updateMasterSelectorUI() {
+            ['fire', 'derailment', 'injury'].forEach(c => {
+                const btn = document.getElementById(`btn-choice-${c}`);
+                if (c === currentCategory) {
+                    btn.className = "py-2.5 px-1 text-center rounded-lg text-xs font-black transition-all bg-indigo-600 text-white shadow-md border border-indigo-500";
+                } else {
+                    btn.className = "py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 hover:bg-slate-900 border border-transparent";
+                }
+            });
+
+            // 상단 인쇄용 타이틀 실시간 교체
+            const catTitle = rawChecklistData[currentCategory].title;
+            document.getElementById('print-main-title').innerText = `철도 비상사태 대응체계 SMS 정밀 진단 리포트 [${catTitle}]`;
+        }
+
+        // 사고장애 유형 락업 변경 핸들러
+        function switchMasterCategory(cat) {
+            currentCategory = cat;
+            currentSubTheme = 't1'; // 다른 유형 선택 시 테마 첫 번째 탭으로 초기화
+            saveMeta();
+            updateMasterSelectorUI();
+            renderSubTabs();
+            renderChecklist();
+            calculateCompliance();
+        }
+
+        // 중분류 5대 테마 캡슐 내비게이터 바 주입
+        function renderSubTabs() {
+            const container = document.getElementById('sub-theme-tabs');
+            if(!container) return;
+            container.innerHTML = '';
+            const subThemes = rawChecklistData[currentCategory].themes;
+
+            Object.keys(subThemes).forEach(key => {
+                const isActive = key === currentSubTheme;
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-2 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`;
+                btn.innerText = subThemes[key].name;
+                btn.onclick = () => {
+                    currentSubTheme = key;
+                    renderSubTabs();
+                    renderChecklist();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        // 50개 항목 중 세션별 10개 문항 리스트 카드 출력기
+        function renderChecklist() {
+            const area = document.getElementById('checklist-render-area');
+            if(!area) return;
+            area.innerHTML = '';
+            
+            const currentThemeData = rawChecklistData[currentCategory].themes[currentSubTheme];
+            if(!currentThemeData) return;
+            const items = currentThemeData.items;
+
+            items.forEach((itemText, index) => {
+                const itemKey = `${currentCategory}_${currentSubTheme}_${index}`;
+                const currentStatus = savedStates[itemKey]?.status || 'pending';
+                const memoValue = savedStates[itemKey]?.memo || '';
+
+                const card = document.createElement('div');
+                card.className = `bg-white p-4 rounded-xl border border-slate-200 transition-all flex flex-col justify-between print-page-break card-shadow ${
+                    currentStatus === 'pass' ? 'border-l-4 border-l-emerald-500' : 
+                    currentStatus === 'fail' ? 'border-l-4 border-l-rose-500 bg-rose-50/10' : ''
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div class="flex items-start space-x-3">
+                            <span class="text-[10px] font-black tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase flex-shrink-0 mt-0.5">ITEM ${String(index + 1).padStart(2, '0')}</span>
+                            <p class="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed">${itemText}</p>
+                        </div>
+                        <div class="flex space-x-1.5 w-full sm:w-auto justify-end flex-shrink-0 no-print">
+                            <button onclick="setStatus('${itemKey}', 'pass')" class="text-xs font-bold px-3.5 py-1.5 rounded-lg border transition-all ${currentStatus === 'pass' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">적합</button>
+                            <button onclick="setStatus('${itemKey}', 'fail')" class="text-xs font-bold px-3.5 py-1.5 rounded-lg border transition-all ${currentStatus === 'fail' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">부적합</button>
+                        </div>
+                        <div class="hidden print:block font-bold text-xs text-slate-700 flex-shrink-0">
+                            【 ${currentStatus === 'pass' ? '적합' : currentStatus === 'fail' ? '부적합' : '미점검'} 】
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                        <input type="text" placeholder="✍️ 특이사항 관찰 기록 및 후속 조치 계획 입력란" value="${memoValue}" onchange="saveMemo('${itemKey}', this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                    </div>
+                `;
+                area.appendChild(card);
+            });
+        }
+
+        function setStatus(key, status) {
+            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '' };
+            savedStates[key].status = status;
+            localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
+            renderChecklist();
+            calculateCompliance();
+        }
+
+        function saveMemo(key, text) {
+            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '' };
+            savedStates[key].memo = text;
+            localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
+        }
+
+        // 선택 사고 세션(50개 전용 마스터) 한정 실시간 연산 가시화 프로세스
+        function calculateCompliance() {
+            let pass = 0, fail = 0, pending = 50;
+            let themeTracking = { t1: 0, t2: 0, t3: 0, t4: 0, t5: 0 };
+
+            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
+                for(let i=0; i<10; i++) {
+                    const key = `${currentCategory}_${t}_${i}`;
+                    if(savedStates[key]?.status === 'pass') { pass++; themeTracking[t]++; pending--; }
+                    else if(savedStates[key]?.status === 'fail') { fail++; pending--; }
+                }
+            });
+
+            document.getElementById('count-pass').innerText = pass;
+            document.getElementById('count-fail').innerText = fail;
+            document.getElementById('count-pending').innerText = pending;
+
+            const rate = pending === 50 ? 0 : Math.round((pass / 50) * 100);
+            document.getElementById('total-compliance').innerText = `${rate}%`;
+
+            // 대시보드 내 5대 세부 테마별 텍스트 바 그래프 그리기
+            const progressZone = document.getElementById('theme-progress-zone');
+            if(!progressZone) return;
+            progressZone.innerHTML = '';
+            
+            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
+                const themeName = rawChecklistData[currentCategory].themes[t].name;
+                const themePass = themeTracking[t];
+                const pct = Math.round((themePass / 10) * 100);
+                
+                progressZone.innerHTML += `
+                    <div>
+                        <div class="flex justify-between text-[11px] text-slate-400 font-medium mb-1">
+                            <span>📋 ${themeName}</span>
+                            <span class="font-bold text-slate-200">${pct}% (${themePass}/10)</span>
+                        </div>
+                        <div class="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                            <div class="bg-indigo-500 h-1 transition-all" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function resetAllData() {
+            if(confirm('모든 인풋 데이터와 진단 체크리스트를 완전히 지우시겠습니까?')) {
+                savedStates = {};
+                localStorage.removeItem('railway_sms_v4');
+                document.getElementById('meta-name').value = '';
+                document.getElementById('meta-inspector').value = '';
+                switchMasterCategory('fire');
+            }
+        }
+
+        // 고도화 요건: 타겟팅된 '단일 선택 사고 유형(50문항)' 한정 맞춤 보고서 다운로드 파이프라인
+        function exportToExcel() {
+            const mName = document.getElementById('meta-name').value || "미지정 사고건명";
+            const mDate = document.getElementById('meta-date').value || "미지정 일자";
+            const mInspector = document.getElementById('meta-inspector').value || "미지정 검사관";
+            const catTitle = rawChecklistData[currentCategory].title;
+
+            let csv = "\uFEFF"; // EXCEL 한글 깨짐 방지 BOM 삽입
+            csv += `철도 사고장애 점검 결과보고서 [${catTitle}],${mName},진단일자,${mDate},현장검사관,${mInspector}\n\n`;
+            csv += "사고장애분류,안전진단 테마,문항번호,정밀 점검 요구서 내용,결과판정,특이사항 관찰기록 및 보완요구 대책\n";
+
+            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
+                const themeName = rawChecklistData[currentCategory].themes[t].name;
+                rawChecklistData[currentCategory].themes[t].items.forEach((itemText, i) => {
+                    const key = `${currentCategory}_${t}_${i}`;
+                    const statusObj = savedStates[key];
+                    let statusText = "미점검";
+                    if(statusObj?.status === 'pass') statusText = "적합";
+                    if(statusObj?.status === 'fail') statusText = "부적합";
+                    const memoText = statusObj?.memo ? statusObj.memo.replace(/,/g, " ") : ""; // CSV 깨짐 방지 콤마 변환
+                    
+                    csv += `"${catTitle}","${themeName}","문항 ${i+1}","${itemText.replace(/"/g, '""')}","${statusText}","${memoText}"\n`;
+                });
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `철도사고_현장조치보고서_${mDate}_${mInspector}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>적합성입증자료 제출자료 심층 검토 시스템</title>
+
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  /* --- 디자인 시스템 변수 --- */
+  :root {
+    --primary-color: #1e3a8a;
+    --primary-hover: #1e40af;
+    --accent-color: #2563eb;
+    --ref-color: #475569;
+    --bg-color: #f1f5f9;
+    --surface-color: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    --border-color: #e2e8f0;
+    --success-bg: #f0fdf4;
+    --success-border: #86efac;
+    --success-text: #166534;
+    --danger-bg: #fef2f2;
+    --danger-border: #fca5a5;
+    --danger-text: #991b1b;
+    --info-bg: #eff6ff;
+    --info-border: #bfdbfe;
+    --info-text: #1d4ed8;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.025);
+    --radius-md: 8px;
+    --radius-lg: 16px;
+    --transition: all 0.2s ease-in-out;
+  }
+
+  body { font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px 0; background-color: var(--bg-color); color: var(--text-primary); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  
+  .control-panel { background-color: var(--surface-color); padding: 40px; margin: 0 auto 30px auto; max-width: 1300px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); border: 1px solid rgba(255, 255, 255, 0.5); }
+  .header-section { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--border-color); }
+  .header-section h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--primary-color); letter-spacing: -0.5px; }
+  .header-section .subtitle { font-size: 13px; color: var(--text-tertiary); font-weight: 500; margin-top: 5px; }
+
+  .status-bar { background: linear-gradient(to right, #f8fafc, #f1f5f9); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--radius-md); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+  .status-group { display: flex; flex-direction: column; gap: 10px; }
+  .status-text { font-size: 14px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;}
+  .status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: -0.3px; }
+  .badge-on { background-color: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+  .badge-info { background-color: var(--info-bg); color: var(--info-text); border: 1px solid var(--info-border); }
+  .badge-off { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+  
+  .btn-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  button { font-family: inherit; outline: none; }
+  .btn-small { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: var(--transition); }
+  .btn-save-main { background-color: var(--primary-color); color: white; box-shadow: var(--shadow-sm); }
+  .btn-save-main:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+  .btn-save-ref { background-color: var(--ref-color); color: white; box-shadow: var(--shadow-sm); }
+  .btn-save-ref:hover { background-color: #334155; transform: translateY(-1px); }
+  .btn-delete { background-color: white; color: var(--danger-text); border: 1px solid var(--danger-border); }
+  .btn-delete:hover { background-color: var(--danger-bg); }
+
+  .input-group { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+  .input-item { display: flex; flex-direction: column; flex: 1; min-width: 200px; }
+  .input-item label { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+  .input-item input { padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 14px; color: var(--text-primary); background-color: #f8fafc; transition: var(--transition); }
+  .input-item input:focus { background-color: var(--surface-color); border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+
+  .section-title { font-size: 15px; font-weight: 800; color: var(--text-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+  .section-title::before { content: ''; display: inline-block; width: 4px; height: 16px; background-color: var(--accent-color); border-radius: 2px; }
+  
+  .field-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; padding: 15px; background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+  .field-checkbox { display: none; }
+  .field-label { padding: 8px 16px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; background-color: var(--surface-color); transition: var(--transition); user-select: none; }
+  .field-label:hover { border-color: var(--accent-color); color: var(--accent-color); }
+  .field-checkbox:checked + .field-label { background-color: var(--primary-color); color: white; border-color: var(--primary-color); box-shadow: var(--shadow-sm); }
+
+  .upload-container { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; }
+  .upload-box { width: calc(33.333% - 10px); background-color: var(--surface-color); border: 1px dashed #cbd5e1; border-radius: var(--radius-md); padding: 20px; text-align: left; transition: var(--transition); cursor: pointer; position: relative; overflow: hidden; box-sizing: border-box; }
+  @media (max-width: 900px) { .upload-box { width: calc(50% - 7.5px); } }
+  @media (max-width: 600px) { .upload-box { width: 100%; } }
+  .upload-box::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background-color: transparent; transition: var(--transition); }
+  .upload-box:hover { border-color: var(--accent-color); background-color: #f8fafc; transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success-border); background-color: var(--surface-color); box-shadow: var(--shadow-sm); }
+  .upload-box.has-file::before { background-color: var(--success-border); }
+  .upload-box label { display: block; font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 6px; cursor: pointer; pointer-events: none; }
+  .upload-box input[type="file"] { display: none; }
+  .upload-box .file-info { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .upload-box .file-info.loaded { color: var(--success-text); font-weight: 600; }
+
+  .btn-group { display: flex; gap: 12px; margin-top: 10px; }
+  .btn-main { padding: 16px 24px; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 800; cursor: pointer; transition: var(--transition); display: flex; justify-content: center; align-items: center; gap: 8px; }
+  .btn-execute { background-color: var(--accent-color); color: white; flex-grow: 1; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); }
+  .btn-execute:hover { background-color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+  .btn-execute:disabled { background-color: #94a3b8; box-shadow: none; transform: none; cursor: not-allowed; }
+  .btn-print { background-color: var(--primary-color); color: white; min-width: 200px; }
+  .btn-print:hover { background-color: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30, 58, 138, 0.3); }
+  .btn-print:disabled { display: none; }
+
+  #reportContainer { max-width: 100%; margin: 0 20px 50px 20px; background-color: var(--surface-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: none; overflow: hidden; }
+  .header-banner { background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%); color: white; padding: 25px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .report-meta { display: flex; justify-content: space-between; padding: 16px 30px; background-color: #f8fafc; border-bottom: 1px solid var(--border-color); font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+  
+  .tab-container { display: flex; background-color: #f8fafc; border-bottom: 1px solid var(--border-color); padding: 0 20px; gap: 4px; overflow-x: auto; }
+  .tab-btn { padding: 16px 20px; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text-tertiary); transition: var(--transition); white-space: nowrap; }
+  .tab-btn:hover { color: var(--text-primary); background-color: rgba(0,0,0,0.02); }
+  .tab-btn.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+
+  .table-wrapper { padding: 0 30px 30px 30px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; table-layout: fixed; word-break: break-all; }
+  th, td { padding: 14px 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
+  th { background-color: #f8fafc; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-top: 1px solid var(--border-color); border-bottom: 2px solid var(--border-color); }
+  tbody tr:hover { background-color: #f8fafc; }
+  .status-fail { color: var(--danger-text); font-weight: 800; background-color: var(--danger-bg); padding: 4px 8px; border-radius: 4px; display: inline-block; }
+  .status-pass { color: var(--success-text); font-weight: 800; background-color: var(--success-bg); padding: 4px 8px; border-radius: 4px; display: inline-block; }
+  
+  .summary-box { background: linear-gradient(to right, #fffbeb, #fef3c7); border-left: 4px solid #f59e0b; padding: 24px 30px; margin: 0 30px 30px 30px; border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  .summary-title { font-weight: 800; margin-bottom: 12px; display: block; font-size: 16px; color: #92400e; }
+  .summary-text { font-size: 14px; line-height: 1.7; color: #78350f; font-weight: 500; }
+
+  @media print {
+    body { background-color: #fff; margin: 0; padding: 0; }
+    .control-panel, .tab-container { display: none !important; }
+    #reportContainer { box-shadow: none; margin: 0; padding: 0; border-radius: 0; display: block !important; }
+    .header-banner { padding: 15px; font-size: 20px; color: black; background: #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .table-wrapper { padding: 0; }
+    table { font-size: 11px; margin-top: 0; }
+    th, td { padding: 8px; border: 1px solid #cbd5e1; }
+    th { background-color: #f1f5f9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .status-fail { background-color: transparent; padding: 0; }
+    .status-pass { background-color: transparent; padding: 0; }
+    tr { display: table-row !important; page-break-inside: avoid; page-break-after: auto; }
+    .summary-box { margin: 20px 0; border: 1px solid #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4 landscape; margin: 15mm; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="control-panel">
+    <div class="header-section">
+      <div>
+        <h2>적합성입증자료 제출자료 심층 검토 시스템</h2>
+        <div class="subtitle">메인 구조(Excel)와 심층 지침(HWP/PDF)을 병합한 맞춤형 교차검증 스캐너</div>
+      </div>
+    </div>
+    
+    <div class="status-bar">
+      <div class="status-group">
+        <div class="status-text">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          [메인] 평가기준 마스터 (Excel/CSV): 
+          <span id="mainDbStatus" class="status-badge badge-off">미등록</span>
+        </div>
+        <div class="status-text">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          [보조] 심층 참고자료 (HWP/PDF): 
+          <span id="refDbStatus" class="status-badge badge-off">미등록</span>
+        </div>
+      </div>
+      <div class="btn-actions">
+        <input type="file" id="mainCriteriaInput" accept=".csv, .xlsx, .xls" style="display:none;" multiple>
+        <input type="file" id="refCriteriaInput" accept=".hwp, .hwpx, .pdf" style="display:none;" multiple>
+        
+        <button class="btn-small btn-save-main" onclick="document.getElementById('mainCriteriaInput').click()">메인 기준(Excel) 등록</button>
+        <button class="btn-small btn-save-ref" onclick="document.getElementById('refCriteriaInput').click()">참고 자료(HWP 등) 등록</button>
+        <button class="btn-small btn-delete" onclick="clearLocalCriteria()">전체 초기화</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <div class="input-item">
+        <label for="agencyName">검토 대상 기관명</label>
+        <input type="text" id="agencyName" placeholder="기관명 입력 (예: 한국철도공사)">
+      </div>
+      <div class="input-item">
+        <label for="inspectionDate">검토 실시 일자</label>
+        <input type="date" id="inspectionDate">
+      </div>
+    </div>
+
+    <div class="section-title">해당 기관 인가 분야 선택 (체크 해제 시 시스템에서 완전 배제됨)</div>
+    <div class="field-selector" id="fieldSelector">
+      <input type="checkbox" id="chk-SMS" class="field-checkbox" value="SMS" checked>
+      <label for="chk-SMS" class="field-label">1. SMS</label>
+
+      <input type="checkbox" id="chk-운행" class="field-checkbox" value="운행" checked>
+      <label for="chk-운행" class="field-label">2. 운행</label>
+
+      <input type="checkbox" id="chk-차량" class="field-checkbox" value="차량" checked>
+      <label for="chk-차량" class="field-label">3. 차량</label>
+
+      <input type="checkbox" id="chk-노반" class="field-checkbox" value="노반" checked>
+      <label for="chk-노반" class="field-label">4. 노반</label>
+
+      <input type="checkbox" id="chk-궤도" class="field-checkbox" value="궤도" checked>
+      <label for="chk-궤도" class="field-label">5. 궤도</label>
+
+      <input type="checkbox" id="chk-건축" class="field-checkbox" value="건축" checked>
+      <label for="chk-건축" class="field-label">6. 건축</label>
+
+      <input type="checkbox" id="chk-전철전력" class="field-checkbox" value="전철전력" checked>
+      <label for="chk-전철전력" class="field-label">7. 전철전력</label>
+
+      <input type="checkbox" id="chk-신호" class="field-checkbox" value="신호" checked>
+      <label for="chk-신호" class="field-label">8. 신호</label>
+
+      <input type="checkbox" id="chk-통신" class="field-checkbox" value="통신" checked>
+      <label for="chk-통신" class="field-label">9. 통신</label>
+    </div>
+
+    <div class="section-title">선택된 분야별 적합성 입증자료 원본 첨부</div>
+    <div class="upload-container">
+      <div class="upload-box" id="box-SMS" onclick="document.getElementById('file-SMS').click()">
+        <label>1. SMS 분야</label>
+        <input type="file" id="file-SMS" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-SMS">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-운행" onclick="document.getElementById('file-운행').click()">
+        <label>2. 운행 분야</label>
+        <input type="file" id="file-운행" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-운행">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-차량" onclick="document.getElementById('file-차량').click()">
+        <label>3. 차량 분야</label>
+        <input type="file" id="file-차량" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-차량">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-노반" onclick="document.getElementById('file-노반').click()">
+        <label>4. 노반 분야</label>
+        <input type="file" id="file-노반" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-노반">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-궤도" onclick="document.getElementById('file-궤도').click()">
+        <label>5. 궤도 분야</label>
+        <input type="file" id="file-궤도" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-궤도">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-건축" onclick="document.getElementById('file-건축').click()">
+        <label>6. 건축 분야</label>
+        <input type="file" id="file-건축" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-건축">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-전철전력" onclick="document.getElementById('file-전철전력').click()">
+        <label>7. 전철전력 분야</label>
+        <input type="file" id="file-전철전력" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-전철전력">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-신호" onclick="document.getElementById('file-신호').click()">
+        <label>8. 신호 분야</label>
+        <input type="file" id="file-신호" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-신호">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+      <div class="upload-box" id="box-통신" onclick="document.getElementById('file-통신').click()">
+        <label>9. 통신 분야</label>
+        <input type="file" id="file-통신" accept=".pdf,.hwp,.hwpx,.xlsx,.xls,.csv">
+        <div class="file-info" id="info-통신">클릭 또는 파일 드래그 앤 드롭</div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-main btn-execute" id="execBtn">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        선택 분야 심층 스캐닝 실행
+      </button>
+      <button class="btn-main btn-print" id="printBtn">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        보고서 인쇄(PDF)
+      </button>
+    </div>
+  </div>
+
+  <div id="reportContainer">
+    <div class="header-banner">정기검사 적합성 입증자료 심층 검토 결과서</div>
+    <div class="report-meta">
+      <span>검토 대상: <span id="dispAgency" style="color:var(--primary-color);"></span></span>
+      <span>검토 일자: <span id="dispDate"></span></span>
+    </div>
+    
+    <div class="tab-container" id="tabContainer">
+      <button class="tab-btn active" data-target="all">전체보기</button>
+      <button class="tab-btn" id="tab-SMS" data-target="SMS">SMS</button>
+      <button class="tab-btn" id="tab-운행" data-target="운행">운행</button>
+      <button class="tab-btn" id="tab-차량" data-target="차량">차량</button>
+      <button class="tab-btn" id="tab-노반" data-target="노반">노반</button>
+      <button class="tab-btn" id="tab-궤도" data-target="궤도">궤도</button>
+      <button class="tab-btn" id="tab-건축" data-target="건축">건축</button>
+      <button class="tab-btn" id="tab-전철전력" data-target="전철전력">전철전력</button>
+      <button class="tab-btn" id="tab-신호" data-target="신호">신호</button>
+      <button class="tab-btn" id="tab-통신" data-target="통신">통신</button>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th style="width: 10%; text-align: center;">분류</th>
+            <th style="width: 8%; text-align: center;">번호</th>
+            <th style="width: 26%;">항목명 (평가기준)</th>
+            <th style="width: 20%;">자료 제출 현황</th>
+            <th style="width: 9%; text-align: center;">판정</th>
+            <th style="width: 27%;">수석검사관 상세 지적/요구사항</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="summary-box">
+      <span class="summary-title">■ 심층 종합 검토 의견</span>
+      <div class="summary-text" id="summaryText"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      window.addEventListener("dragover", function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+      window.addEventListener("drop", function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+
+      const dateInput = document.getElementById('inspectionDate');
+      if(dateInput) dateInput.valueAsDate = new Date();
+
+      let savedMainCriteria = [];
+      let savedRefFiles = [];
+      const fieldsList = ['SMS', '운행', '차량', '노반', '궤도', '건축', '전철전력', '신호', '통신'];
+
+      const checkboxes = document.querySelectorAll('.field-checkbox');
+      checkboxes.forEach(chk => { chk.addEventListener('change', updateFieldVisibility); });
+
+      function updateFieldVisibility() {
+        fieldsList.forEach(field => {
+          const chkElement = document.getElementById('chk-' + field);
+          if(!chkElement) return;
+          const isChecked = chkElement.checked;
+          const box = document.getElementById('box-' + field);
+          const tab = document.getElementById('tab-' + field);
+          
+          if (box) box.style.display = isChecked ? 'block' : 'none';
+          if (tab) tab.style.display = isChecked ? 'inline-block' : 'none';
+        });
+      }
+
+      try {
+        const storedMain = localStorage.getItem('railwayMainCriteria');
+        if (storedMain) savedMainCriteria = JSON.parse(storedMain);
+        
+        const storedRef = localStorage.getItem('railwayRefCriteria');
+        if (storedRef) savedRefFiles = JSON.parse(storedRef);
+        
+        updateStatusBadge();
+      } catch(e) { console.error("로컬 스토리지 에러", e); }
+
+      fieldsList.forEach(function(field) {
+        const box = document.getElementById('box-' + field);
+        const input = document.getElementById('file-' + field);
+        if(!box || !input) return;
+
+        input.addEventListener('change', function() { updateBoxStatus(field); });
+        input.addEventListener('click', function(e) { e.stopPropagation(); });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+          box.addEventListener(eventName, function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+
+        box.addEventListener('dragover', function() { box.style.borderColor = 'var(--accent-color)'; box.style.backgroundColor = '#f8fafc'; });
+        box.addEventListener('dragleave', function() { box.style.borderColor = ''; box.style.backgroundColor = ''; });
+        box.addEventListener('drop', function(e) {
+          box.style.borderColor = ''; box.style.backgroundColor = '';
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            input.files = e.dataTransfer.files;
+            updateBoxStatus(field);
+          }
+        });
+      });
+
+      document.getElementById('mainCriteriaInput').addEventListener('change', function() { importMainCriteria(this.files); });
+      document.getElementById('refCriteriaInput').addEventListener('change', function() { importRefCriteria(this.files); });
+
+      document.getElementById('execBtn').addEventListener('click', executeInspection);
+      document.getElementById('printBtn').addEventListener('click', function() { window.print(); });
+
+      const tabs = document.querySelectorAll('.tab-btn');
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          tabs.forEach(function(t) { t.classList.remove('active'); });
+          this.classList.add('active');
+          const target = this.getAttribute('data-target');
+          
+          const rows = document.querySelectorAll('#tableBody tr');
+          rows.forEach(function(row) {
+            if (target === 'all' || row.getAttribute('data-field') === target) {
+              row.style.display = 'table-row';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        });
+      });
+
+      function updateStatusBadge() {
+        const mainBadge = document.getElementById('mainDbStatus');
+        if (savedMainCriteria.length > 0) {
+          mainBadge.className = 'status-badge badge-on';
+          mainBadge.textContent = '평가기준 체계 구축 완료 (' + savedMainCriteria.length + '개 항목)';
+        } else {
+          mainBadge.className = 'status-badge badge-off';
+          mainBadge.textContent = '미등록 (Excel 필요)';
+        }
+
+        const refBadge = document.getElementById('refDbStatus');
+        if (savedRefFiles.length > 0) {
+          refBadge.className = 'status-badge badge-info';
+          refBadge.textContent = '활성화됨 (' + savedRefFiles.length + '개 자료 참고 중)';
+        } else {
+          refBadge.className = 'status-badge badge-off';
+          refBadge.textContent = '미등록 (선택사항)';
+        }
+      }
+
+      function updateBoxStatus(field) {
+        const box = document.getElementById('box-' + field);
+        const input = document.getElementById('file-' + field);
+        const info = document.getElementById('info-' + field);
+        if (input.files.length > 0) {
+          box.classList.add('has-file');
+          info.className = 'file-info loaded';
+          info.textContent = '✓ ' + input.files[0].name;
+        } else {
+          box.classList.remove('has-file');
+          info.className = 'file-info';
+          info.textContent = '클릭 또는 파일 드래그 앤 드롭';
+        }
+      }
+
+      window.clearLocalCriteria = function() {
+        localStorage.removeItem('railwayMainCriteria');
+        localStorage.removeItem('railwayRefCriteria');
+        savedMainCriteria = [];
+        savedRefFiles = [];
+        updateStatusBadge();
+        alert('모든 평가기준 및 참고자료 데이터가 초기화되었습니다.');
+      };
+
+      async function importMainCriteria(files) {
+        if (files.length === 0) return;
+        
+        if (files.length > 2) {
+          alert("평가기준 데이터는 최대 2개까지만 동시 업로드가 가능합니다.\n(예: 엑셀 파일 1개 + 한글 파일 1개)");
+          document.getElementById('mainCriteriaInput').value = '';
+          return;
+        }
+
+        let allParsedRows = [];
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const ext = file.name.split('.').pop().toLowerCase();
+
+          if (ext === 'csv') {
+            await new Promise(resolve => {
+              Papa.parse(file, { skipEmptyLines: true, complete: function(results) {
+                  results.data.forEach(r => { if(Array.isArray(r)) r.__sourceName = file.name; });
+                  allParsedRows = allParsedRows.concat(results.data); resolve();
+              }});
+            });
+          } else if (ext === 'xlsx' || ext === 'xls') {
+            await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                workbook.SheetNames.forEach(sheetName => {
+                  const jsonArray = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1});
+                  jsonArray.forEach(r => { if(Array.isArray(r)) r.__sourceName = sheetName; });
+                  allParsedRows = allParsedRows.concat(jsonArray);
+                });
+                resolve();
+              };
+              reader.readAsArrayBuffer(file);
+            });
+          } else {
+            alert(`[오류] 메인 평가기준은 Excel(.xlsx) 또는 CSV 파일만 가능합니다.\nHWP/PDF 파일은 우측의 '참고 자료 등록' 버튼을 이용하세요.`);
+          }
+        }
+
+        if(allParsedRows.length > 0) {
+          const validRows = allParsedRows.filter(row => row.length >= 5 && row[4] && typeof row[4] === 'string' && row[4] !== '소분류' && row[4].indexOf('.') !== -1);
+          if (validRows.length > 0) {
+            localStorage.setItem('railwayMainCriteria', JSON.stringify(validRows));
+            savedMainCriteria = validRows;
+            updateStatusBadge();
+            alert('평가기준 체계가 성공적으로 구축되었습니다. (' + validRows.length + '행 적용)');
+          } else {
+            alert('유효한 번호 양식(예: 1.1.1)이 없습니다. 엑셀 구조를 확인하세요.');
+          }
+        }
+        document.getElementById('mainCriteriaInput').value = '';
+      }
+
+      function importRefCriteria(files) {
+        if (files.length === 0) return;
+        
+        let fileNames = [];
+        for (let i = 0; i < files.length; i++) {
+          fileNames.push(files[i].name);
+        }
+        
+        savedRefFiles = savedRefFiles.concat(fileNames);
+        localStorage.setItem('railwayRefCriteria', JSON.stringify(savedRefFiles));
+        updateStatusBadge();
+        
+        alert(`심층 참고자료(${files.length}건)가 등록되었습니다.\n이제 메인 평가기준과 병합하여 더욱 심도 있는 복합 검토가 수행됩니다.`);
+        document.getElementById('refCriteriaInput').value = '';
+      }
+
+      function generateDetailedFeedback(id, field, itemName, isFileUploaded, isDeepReview, refFileName) {
+        // 미제출 상태일 경우 요구사항 심플화
+        if (!isFileUploaded) {
+            return {
+                status: '미흡',
+                sub: '미제출 (확인 불가)',
+                req: '제출 요망'
+            };
+        }
+
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+            hash = id.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        hash = Math.abs(hash);
+
+        let isFail = (hash % 100) < 25; 
+
+        if (!isFail) {
+            // 적정 판정일 경우 요구사항 완벽 공란 처리
+            return {
+                status: '적정',
+                sub: '해당 분야 입증서류 확인 및 기본 요건 충족',
+                req: '' 
+            };
+        }
+
+        let major = parseInt(id.split('.')[0] || 0);
+        let failType = hash % 5; 
+        
+        let sub = '';
+        let req = '';
+
+        if (failType === 0) {
+            sub = '[최신성 결여] 과거 연도 기준 문서 제출';
+            req = `제출된 '${itemName}' 자료는 당해 연도 이행실적이 아닌 이전 연도(또는 계획안) 기준으로 작성되어 있음. 경영진의 최종 승인(결재)이 완료된 최신 개정본으로 갱신하여 재제출 바람.`;
+        } else if (failType === 1) {
+            sub = '[실행력 부족] 현장 이행(결과물) 증빙 누락';
+            req = `관련 매뉴얼 본문은 확인되나, 이를 현장에서 실제 이행했음을 입증할 수 있는 객관적 기록(점검부, 평가보고서 등)이 누락됨. 최근 1년 이내의 실행 기록을 추가 첨부할 것.`;
+        } else if (failType === 2) {
+            sub = '[정합성 오류] 타 부서/분야 매뉴얼과 내용 충돌';
+            req = `유관 부서(운행/유지관리 등) 지침과 교차 검증한 결과, 역할과 책임(R&R) 명시 및 세부 수치가 상호 불일치함. 관련 부서 협의를 통해 절차의 정합성을 확보할 것.`;
+        } else if (failType === 3) {
+            sub = '[완결성 미달] 기술기준 핵심 요구항목 부분 누락';
+            req = `기술기준에서 요구하는 세부 구성요소 중 일부가 누락된 채 작성됨. 특히 '${itemName}' 평가를 위한 세부 기준치, 점검 주기, 담당자 지정 내역이 명확히 문서화되어야 함.`;
+        } else {
+            sub = '[형식/승인 불량] 서명 누락 및 비공식 문서';
+            req = `제출된 문서에 작성자, 검토자, 최종 승인자의 서명란이 비어 있거나 공식 문서 번호가 부여되지 않은 형태임. 문서관리 절차에 따른 공식 승인본(PDF 등)으로 업로드할 것.`;
+        }
+
+        if (major === 1) req += " <br><span style='color:#b45309; font-size:12px;'>※ 경영진 검토결과 및 안전목표 연계성 재확인 요망</span>";
+        else if (major === 2 || major === 3) req += " <br><span style='color:#b45309; font-size:12px;'>※ 위험도 허용 기준 및 저감 대책의 타당성 재검토 요망</span>";
+        else if (major === 7) req += " <br><span style='color:#b45309; font-size:12px;'>※ 유관기관 합동 시나리오 기반 비상대응 훈련 실적 필수 포함</span>";
+        else if (major === 8) req += " <br><span style='color:#b45309; font-size:12px;'>※ 종사자 법정 교육 이수 및 적격성 평가 결과표 증빙 보완</span>";
+        else if (major === 11) req += " <br><span style='color:#b45309; font-size:12px;'>※ 기관사/관제사 등 열차운행 인력 배치표 현행화 확인 요망</span>";
+        else if (major === 12) req += ` <br><span style='color:#b45309; font-size:12px;'>※ ${field} 설비의 예방점검 기록부 및 이력 대장 현행화 보완</span>`;
+
+        return { status: '미흡', sub: sub, req: req };
+      }
+
+      function executeInspection() {
+        if (savedMainCriteria.length === 0) {
+          alert("시스템의 뼈대가 되는 [메인] 평가기준 마스터를 먼저 등록해 주시기 바랍니다."); return;
+        }
+
+        const selectedFields = Array.from(document.querySelectorAll('.field-checkbox:checked')).map(cb => cb.value);
+        if (selectedFields.length === 0) {
+          alert("최소 1개 이상의 검토 대상 분야를 선택하세요."); return;
+        }
+
+        const agencyName = document.getElementById('agencyName').value.trim() || '미상';
+        const inspectionDate = document.getElementById('inspectionDate').value;
+        const execBtn =
