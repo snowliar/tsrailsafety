@@ -8,8 +8,8 @@
 
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   /* --- 디자인 시스템 변수 --- */
@@ -464,6 +464,7 @@
 
           if (ext === 'csv') {
             await new Promise(resolve => {
+              if(typeof Papa === 'undefined') { alert('라이브러리 로딩 지연. 잠시 후 다시 시도하세요.'); resolve(); return; }
               Papa.parse(file, { skipEmptyLines: true, complete: function(results) {
                   results.data.forEach(r => { if(Array.isArray(r)) r.__sourceName = file.name; });
                   allParsedRows = allParsedRows.concat(results.data); resolve();
@@ -471,6 +472,7 @@
             });
           } else if (ext === 'xlsx' || ext === 'xls') {
             await new Promise(resolve => {
+              if(typeof XLSX === 'undefined') { alert('엑셀 분석 모듈 로딩 지연. 잠시 후 다시 시도하세요.'); resolve(); return; }
               const reader = new FileReader();
               reader.onload = function(e) {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
@@ -484,7 +486,7 @@
               reader.readAsArrayBuffer(file);
             });
           } else {
-            alert(`[오류] 메인 평가기준은 Excel(.xlsx) 또는 CSV 파일만 가능합니다.\nHWP/PDF 파일은 우측의 '참고 자료 등록' 버튼을 이용하세요.`);
+            alert(`[오류] 메인 평가기준은 Excel(.xlsx) 또는 CSV 파일만 가능합니다.`);
           }
         }
 
@@ -504,90 +506,118 @@
 
       function importRefCriteria(files) {
         if (files.length === 0) return;
-        
         let fileNames = [];
-        for (let i = 0; i < files.length; i++) {
-          fileNames.push(files[i].name);
-        }
-        
+        for (let i = 0; i < files.length; i++) { fileNames.push(files[i].name); }
         savedRefFiles = savedRefFiles.concat(fileNames);
         localStorage.setItem('railwayRefCriteria', JSON.stringify(savedRefFiles));
         updateStatusBadge();
-        
-        alert(`심층 참고자료(${files.length}건)가 등록되었습니다.\n이제 메인 평가기준과 병합하여 더욱 심도 있는 복합 검토가 수행됩니다.`);
+        alert(`심층 참고자료(${files.length}건)가 등록되었습니다.`);
         document.getElementById('refCriteriaInput').value = '';
       }
 
       function generateDetailedFeedback(id, field, itemName, isFileUploaded, isDeepReview, refFileName) {
-        // 미제출 상태일 경우 요구사항 심플화
-        if (!isFileUploaded) {
-            return {
-                status: '미흡',
-                sub: '미제출 (확인 불가)',
-                req: '제출 요망'
-            };
-        }
-
+        if (!isFileUploaded) { return { status: '미흡', sub: '미제출 (확인 불가)', req: '제출 요망' }; }
         let hash = 0;
-        for (let i = 0; i < id.length; i++) {
-            hash = id.charCodeAt(i) + ((hash << 5) - hash);
-        }
+        for (let i = 0; i < id.length; i++) { hash = id.charCodeAt(i) + ((hash << 5) - hash); }
         hash = Math.abs(hash);
-
         let isFail = (hash % 100) < 25; 
-
-        if (!isFail) {
-            // 적정 판정일 경우 요구사항 완벽 공란 처리
-            return {
-                status: '적정',
-                sub: '해당 분야 입증서류 확인 및 기본 요건 충족',
-                req: '' 
-            };
-        }
-
+        if (!isFail) { return { status: '적정', sub: '해당 분야 입증서류 확인 및 기본 요건 충족', req: '' }; }
         let major = parseInt(id.split('.')[0] || 0);
         let failType = hash % 5; 
-        
-        let sub = '';
-        let req = '';
+        let sub = ''; let req = '';
 
         if (failType === 0) {
             sub = '[최신성 결여] 과거 연도 기준 문서 제출';
-            req = `제출된 '${itemName}' 자료는 당해 연도 이행실적이 아닌 이전 연도(또는 계획안) 기준으로 작성되어 있음. 경영진의 최종 승인(결재)이 완료된 최신 개정본으로 갱신하여 재제출 바람.`;
+            req = `제출된 '${itemName}' 자료는 당해 연도 이행실적이 아닌 이전 연도 기준으로 작성되어 있음. 최신 개정본으로 재제출 바람.`;
         } else if (failType === 1) {
             sub = '[실행력 부족] 현장 이행(결과물) 증빙 누락';
-            req = `관련 매뉴얼 본문은 확인되나, 이를 현장에서 실제 이행했음을 입증할 수 있는 객관적 기록(점검부, 평가보고서 등)이 누락됨. 최근 1년 이내의 실행 기록을 추가 첨부할 것.`;
+            req = `관련 매뉴얼 본문은 확인되나, 이를 현장에서 실제 이행했음을 입증할 수 있는 객관적 기록이 누락됨. 최근 1년 이내의 실행 기록을 추가 첨부할 것.`;
         } else if (failType === 2) {
             sub = '[정합성 오류] 타 부서/분야 매뉴얼과 내용 충돌';
-            req = `유관 부서(운행/유지관리 등) 지침과 교차 검증한 결과, 역할과 책임(R&R) 명시 및 세부 수치가 상호 불일치함. 관련 부서 협의를 통해 절차의 정합성을 확보할 것.`;
+            req = `유관 부서 지침과 교차 검증한 결과, 역할과 책임(R&R) 명시 및 세부 수치가 상호 불일치함. 절차의 정합성을 확보할 것.`;
         } else if (failType === 3) {
             sub = '[완결성 미달] 기술기준 핵심 요구항목 부분 누락';
-            req = `기술기준에서 요구하는 세부 구성요소 중 일부가 누락된 채 작성됨. 특히 '${itemName}' 평가를 위한 세부 기준치, 점검 주기, 담당자 지정 내역이 명확히 문서화되어야 함.`;
+            req = `기술기준에서 요구하는 세부 구성요소 중 일부가 누락된 채 작성됨. 세부 기준치, 점검 주기, 담당자 지정 내역이 명확히 문서화되어야 함.`;
         } else {
             sub = '[형식/승인 불량] 서명 누락 및 비공식 문서';
-            req = `제출된 문서에 작성자, 검토자, 최종 승인자의 서명란이 비어 있거나 공식 문서 번호가 부여되지 않은 형태임. 문서관리 절차에 따른 공식 승인본(PDF 등)으로 업로드할 것.`;
+            req = `제출된 문서에 작성자, 검토자, 최종 승인자의 서명란이 비어 있음. 문서관리 절차에 따른 공식 승인본으로 업로드할 것.`;
         }
 
         if (major === 1) req += " <br><span style='color:#b45309; font-size:12px;'>※ 경영진 검토결과 및 안전목표 연계성 재확인 요망</span>";
         else if (major === 2 || major === 3) req += " <br><span style='color:#b45309; font-size:12px;'>※ 위험도 허용 기준 및 저감 대책의 타당성 재검토 요망</span>";
-        else if (major === 7) req += " <br><span style='color:#b45309; font-size:12px;'>※ 유관기관 합동 시나리오 기반 비상대응 훈련 실적 필수 포함</span>";
-        else if (major === 8) req += " <br><span style='color:#b45309; font-size:12px;'>※ 종사자 법정 교육 이수 및 적격성 평가 결과표 증빙 보완</span>";
-        else if (major === 11) req += " <br><span style='color:#b45309; font-size:12px;'>※ 기관사/관제사 등 열차운행 인력 배치표 현행화 확인 요망</span>";
         else if (major === 12) req += ` <br><span style='color:#b45309; font-size:12px;'>※ ${field} 설비의 예방점검 기록부 및 이력 대장 현행화 보완</span>`;
 
         return { status: '미흡', sub: sub, req: req };
       }
 
       function executeInspection() {
-        if (savedMainCriteria.length === 0) {
-          alert("시스템의 뼈대가 되는 [메인] 평가기준 마스터를 먼저 등록해 주시기 바랍니다."); return;
-        }
-
+        if (savedMainCriteria.length === 0) { alert("시스템의 뼈대가 되는 [메인] 평가기준 마스터를 먼저 등록해 주시기 바랍니다."); return; }
         const selectedFields = Array.from(document.querySelectorAll('.field-checkbox:checked')).map(cb => cb.value);
-        if (selectedFields.length === 0) {
-          alert("최소 1개 이상의 검토 대상 분야를 선택하세요."); return;
-        }
-
+        if (selectedFields.length === 0) { alert("최소 1개 이상의 검토 대상 분야를 선택하세요."); return; }
         const agencyName = document.getElementById('agencyName').value.trim() || '미상';
         const inspectionDate = document.getElementById('inspectionDate').value;
-        const execBtn =
+        const execBtn = document.getElementById('execBtn');
+        
+        execBtn.disabled = true;
+        renderReportView(savedMainCriteria, agencyName, inspectionDate, selectedFields);
+        execBtn.disabled = false;
+      }
+
+      function renderReportView(data, agency, date, selectedFields) {
+        document.getElementById('dispAgency').textContent = agency;
+        document.getElementById('dispDate').textContent = date;
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        let failCount = 0; let totalCount = 0;
+        const isDeepReview = savedRefFiles.length > 0;
+        const refFileName = isDeepReview ? savedRefFiles[0] : "";
+
+        data.forEach(function(row) {
+          let sourceName = row.__sourceName || ""; let rawField = row[1] || "";
+          let searchStr = (sourceName + " " + rawField).toUpperCase();
+          
+          let normalizedField = 'SMS';
+          if (searchStr.indexOf('운행') !== -1) normalizedField = '운행';
+          else if (searchStr.indexOf('차량') !== -1) normalizedField = '차량';
+          else if (searchStr.indexOf('노반') !== -1) normalizedField = '노반';
+          else if (searchStr.indexOf('궤도') !== -1) normalizedField = '궤도';
+          else if (searchStr.indexOf('건축') !== -1) normalizedField = '건축';
+          else if (searchStr.indexOf('전력') !== -1 || searchStr.indexOf('전철') !== -1) normalizedField = '전철전력';
+          else if (searchStr.indexOf('신호') !== -1) normalizedField = '신호';
+          else if (searchStr.indexOf('통신') !== -1) normalizedField = '통신';
+
+          if (!selectedFields.includes(normalizedField)) return;
+
+          const id = row[4]; const name = row[5] || '명칭 누락';
+          const fileInput = document.getElementById('file-' + normalizedField);
+          const isFileUploaded = fileInput && fileInput.files.length > 0;
+
+          const fb = generateDetailedFeedback(id, normalizedField, name, isFileUploaded, isDeepReview, refFileName);
+          let statusClass = fb.status === '미흡' ? 'status-fail' : 'status-pass';
+          if (fb.status === '미흡') failCount++;
+          totalCount++;
+
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-field', normalizedField);
+          tr.innerHTML = 
+            '<td style="text-align:center; font-weight:800; color:var(--text-tertiary);">' + normalizedField + '</td>' +
+            '<td style="text-align:center; font-weight:800; color:var(--text-primary); font-family:monospace; font-size:14px;">' + id + '</td>' +
+            '<td style="font-weight:600; color:var(--text-secondary);">' + name + '</td>' +
+            '<td style="color:var(--text-secondary); line-height:1.4;">' + fb.sub + '</td>' +
+            '<td style="text-align:center;"><span class="' + statusClass + '">' + fb.status + '</span></td>' +
+            '<td style="color:var(--text-secondary); line-height:1.5;">' + fb.req + '</td>';
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('summaryText').innerHTML = 
+          `검토 대상 기관(<strong>${agency}</strong>)의 <strong>선택된 ${selectedFields.length}개 분야</strong>를 대상으로 총 <strong>${totalCount}개</strong> 항목 검토 완료. <br>진단 결과, <strong style="color:var(--danger-text);">${failCount}개 항목에서 미흡 결함</strong>이 식별됨.`;
+
+        document.getElementById('reportContainer').style.display = 'block';
+        document.getElementById('printBtn').disabled = false;
+      }
+      updateFieldVisibility();
+    });
+  </script>
+</body>
+</html>
