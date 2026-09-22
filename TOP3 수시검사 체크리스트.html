@@ -28,6 +28,7 @@
             .print-page-break { page-break-inside: avoid; }
             .main-container { max-width: 100% !important; width: 100% !important; padding: 0 !important; }
             .card-shadow { box-shadow: none !important; border: 1px solid #e2e8f0 !important; background-color: white !important; }
+            .print-photo { max-height: 200px !important; object-fit: contain !important; }
         }
     </style>
 </head>
@@ -136,6 +137,16 @@
 
     </main>
 
+    <!-- 사진 전체화면 확대보기 스마트 모달 (Lightbox) -->
+    <div id="image-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 no-print" onclick="closeImageModal()">
+        <div class="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center" onclick="event.stopPropagation()">
+            <img id="modal-img-src" src="" class="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain border border-slate-700">
+            <button onclick="closeImageModal()" class="mt-4 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg border border-slate-600 transition-all shadow-md">
+                ✖️ 닫기 (Esc)
+            </button>
+        </div>
+    </div>
+
     <footer class="bg-[#0b0f19] text-slate-600 text-xs py-5 text-center border-t border-slate-900/60 mt-12 no-print">
         <p class="font-bold text-slate-500">철도안전관리체계(SMS) 사고장애 대응 독자 세션 오디터 모듈</p>
         <p class="text-[10px] text-slate-600 mt-1">본 시스템은 외부 서버 데이터 아웃풋 없이 완전히 로컬 샌드박스 보안 저장 방식으로 운용됩니다.</p>
@@ -163,6 +174,11 @@
             renderSubTabs();
             renderChecklist();
             calculateCompliance();
+            
+            // ESC 키 입력 시 이미지 확대 모달 닫기
+            document.addEventListener('keydown', function(e) {
+                if(e.key === 'Escape') closeImageModal();
+            });
         };
 
         async function loadChecklistStructure() {
@@ -307,6 +323,7 @@
             });
         }
 
+        // 현장 사진 기능이 완전 반영된 체크리스트 카드 렌더링
         function renderChecklist() {
             const area = document.getElementById('checklist-render-area');
             if (!area) return;
@@ -320,6 +337,7 @@
                 const itemKey = `${currentCategory}_${currentSubTheme}_${index}`;
                 const currentStatus = savedStates[itemKey]?.status || 'pending';
                 const memoValue = savedStates[itemKey]?.memo || '';
+                const photoValue = savedStates[itemKey]?.photo || null;
 
                 const card = document.createElement('div');
                 card.className = `bg-white p-4 rounded-xl border border-slate-200 transition-all flex flex-col justify-between print-page-break card-shadow ${
@@ -341,16 +359,123 @@
                             【 ${currentStatus === 'pass' ? '적합' : currentStatus === 'fail' ? '부적합' : '미점검'} 】
                         </div>
                     </div>
-                    <div class="mt-3 pt-2.5 border-t border-slate-100">
+
+                    <!-- 특이사항 입력창 및 사진 등록 바 -->
+                    <div class="mt-3 pt-2.5 border-t border-slate-100 space-y-2">
                         <input type="text" placeholder="✍️ 특이사항 관찰 기록 및 후속 조치 계획 입력란" value="${memoValue}" onchange="saveMemo('${itemKey}', this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                        
+                        <!-- 현장 사진 컨트롤 구역 -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 no-print">
+                            ${photoValue ? `
+                                <div class="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-lg border border-slate-200">
+                                    <img src="${photoValue}" onclick="openImageModal('${photoValue}')" title="클릭하여 크게 보기" class="w-12 h-12 object-cover rounded-md border border-slate-300 cursor-pointer hover:opacity-80 transition-opacity">
+                                    <div class="text-[11px] font-semibold text-slate-600">
+                                        <span class="text-indigo-600 font-bold block">📷 사진 등록됨</span>
+                                        <span class="text-[10px] text-slate-400">클릭 시 확대 보기</span>
+                                    </div>
+                                    <button onclick="removePhoto('${itemKey}')" class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 rounded bg-white border border-slate-200 shadow-sm transition-all ml-2">
+                                        🗑️ 삭제
+                                    </button>
+                                </div>
+                            ` : `
+                                <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-300 transition-all flex items-center space-x-1">
+                                    <span>📷 현장 사진 촬영 / 등록</span>
+                                    <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload('${itemKey}', event)">
+                                </label>
+                            `}
+                        </div>
+
+                        <!-- PDF 인쇄 모드일 때 보여지는 증빙 사진 구역 -->
+                        ${photoValue ? `
+                            <div class="hidden print:block mt-2 pt-2 border-t border-dashed border-slate-300">
+                                <span class="text-[10px] font-bold text-slate-500 block mb-1">📷 현장 증빙 사진:</span>
+                                <img src="${photoValue}" class="print-photo rounded-lg border border-slate-300 max-h-40 object-contain">
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 area.appendChild(card);
             });
         }
 
+        // 고성능 캔버스 이미지 압축 엔진 (최대 800px, JPEG Quality 0.75)
+        function compressPhoto(file, callback) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const maxWidth = 800;
+                    const maxHeight = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+                    callback(compressedBase64);
+                };
+            };
+        }
+
+        // 현장 사진 업로드 처리
+        function handlePhotoUpload(key, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            compressPhoto(file, function(compressedBase64) {
+                if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '', photo: null };
+                savedStates[key].photo = compressedBase64;
+                
+                try {
+                    localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
+                    renderChecklist();
+                } catch(e) {
+                    alert("사진 용량이 커서 저장할 수 없습니다. 몇몇 필요 없는 사진을 삭제 후 다시 시도해주세요.");
+                }
+            });
+        }
+
+        // 현장 사진 삭제 처리
+        function removePhoto(key) {
+            if (confirm("첨부된 현장 사진을 삭제하시겠습니까?")) {
+                if (savedStates[key]) {
+                    savedStates[key].photo = null;
+                    localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
+                    renderChecklist();
+                }
+            }
+        }
+
+        // 이미지 확대 모달 제어
+        function openImageModal(src) {
+            document.getElementById('modal-img-src').src = src;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
         function setStatus(key, status) {
-            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '' };
+            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '', photo: null };
             savedStates[key].status = status;
             localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
             renderChecklist();
@@ -358,7 +483,7 @@
         }
 
         function saveMemo(key, text) {
-            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '' };
+            if (!savedStates[key]) savedStates[key] = { status: 'pending', memo: '', photo: null };
             savedStates[key].memo = text;
             localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
         }
@@ -418,7 +543,7 @@
         }
 
         function resetAllData() {
-            if (confirm('모든 입력 데이터와 진단 체크리스트 판정 결과를 지우시겠습니까?')) {
+            if (confirm('모든 입력 데이터와 진단 체크리스트 판정 결과 및 사진을 지우시겠습니까?')) {
                 savedStates = {};
                 localStorage.removeItem('railway_sms_v4');
                 document.getElementById('meta-name').value = '';
@@ -546,7 +671,7 @@
         }
 
         // ==========================================
-        // 결재란 없는 깔끔한 결과보고서 엑셀 추출 엔진
+        // 사진 유무 정보 포함 엑셀 추출 엔진 (7열 적용)
         // ==========================================
         function exportToExcel() {
             const mName = document.getElementById('meta-name').value || "미지정 사고건명";
@@ -557,15 +682,13 @@
             const totalCompliance = document.getElementById('total-compliance').innerText;
             const passCount = document.getElementById('count-pass').innerText;
             const failCount = document.getElementById('count-fail').innerText;
-            const pendingCount = document.getElementById('count-pending').innerText;
 
-            // 1. 점검 요약 및 데이터 행 구성 (결재란 제거)
             const reportRows = [
                 [`철도 비상사태 대응체계 SMS 정밀 진단 리포트 [${catTitle}]`],
-                ["점검 과제명", mName, "진단일자", mDate, "현장검사관", mInspector],
-                ["현장 준수율", totalCompliance, "적합(PASS)", `${passCount} 건`, "부적합(CRITICAL)", `${failCount} 건`],
+                ["점검 과제명", mName, "진단일자", mDate, "현장검사관", mInspector, ""],
+                ["현장 준수율", totalCompliance, "적합(PASS)", `${passCount} 건`, "부적합(CRITICAL)", `${failCount} 건`, ""],
                 [], 
-                ["사고장애분류", "안전진단 테마", "문항번호", "정밀 점검 요구서 내용", "결과판정", "특이사항 관찰기록 및 보완요구 대책"]
+                ["사고장애분류", "안전진단 테마", "문항번호", "정밀 점검 요구서 내용", "결과판정", "특이사항 관찰기록 및 보완요구 대책", "현장사진 유무"]
             ];
 
             const subThemes = rawChecklistData[currentCategory]?.themes || {};
@@ -579,6 +702,7 @@
                     if (statusObj?.status === 'pass') statusText = "적합";
                     if (statusObj?.status === 'fail') statusText = "부적합";
                     const memoText = statusObj?.memo || "";
+                    const photoText = statusObj?.photo ? "[O] 등록됨 (1장)" : "[X] 미등록";
 
                     reportRows.push([
                         catTitle,
@@ -586,28 +710,27 @@
                         `ITEM ${String(i+1).padStart(2, '0')}`,
                         itemText,
                         statusText,
-                        memoText
+                        memoText,
+                        photoText
                     ]);
                 });
             });
 
-            // 2. 워크시트 생성 및 병합 설정
             const worksheet = XLSX.utils.aoa_to_sheet(reportRows);
             worksheet['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } } // 제목 행 셀 병합 (A1:F1)
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } } // 7개 열 병합 (A1:G1)
             ];
 
-            // 3. 열 너비 설정
             worksheet['!cols'] = [
-                { wch: 20 }, 
+                { wch: 18 }, 
                 { wch: 22 }, 
                 { wch: 12 }, 
-                { wch: 65 }, 
+                { wch: 60 }, 
                 { wch: 12 }, 
-                { wch: 45 }  
+                { wch: 40 },
+                { wch: 18 }  // 현장사진 유무 열
             ];
 
-            // 4. 서식 스타일 정의
             const thinBorder = {
                 top: { style: "thin", color: { rgb: "CBD5E1" } },
                 bottom: { style: "thin", color: { rgb: "CBD5E1" } },
@@ -641,7 +764,6 @@
                 border: thinBorder
             };
 
-            // 5. 셀별 서식 매핑
             const range = XLSX.utils.decode_range(worksheet['!ref']);
 
             if (worksheet['A1']) worksheet['A1'].s = titleStyle;
@@ -653,17 +775,17 @@
                 if (worksheet[addr]) worksheet[addr].s = metaValueStyle;
             });
 
-            ['A5', 'B5', 'C5', 'D5', 'E5', 'F5'].forEach(addr => {
+            ['A5', 'B5', 'C5', 'D5', 'E5', 'F5', 'G5'].forEach(addr => {
                 if (worksheet[addr]) worksheet[addr].s = tableHeaderStyle;
             });
 
             for (let R = 5; R <= range.e.r; ++R) {
-                for (let C = 0; C <= 5; ++C) {
+                for (let C = 0; C <= 6; ++C) {
                     const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                     const cell = worksheet[cellAddress];
                     if (!cell) continue;
 
-                    if (C === 4) { 
+                    if (C === 4) { // 판정
                         let statusBg = "F1F5F9";
                         let statusFg = "64748B";
 
@@ -678,6 +800,13 @@
                         cell.s = {
                             font: { name: "맑은 고딕", sz: 10, bold: true, color: { rgb: statusFg } },
                             fill: { fgColor: { rgb: statusBg } },
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: thinBorder
+                        };
+                    } else if (C === 6) { // 사진 유무
+                        let photoFg = cell.v.includes("[O]") ? "1D4ED8" : "94A3B8";
+                        cell.s = {
+                            font: { name: "맑은 고딕", sz: 10, bold: true, color: { rgb: photoFg } },
                             alignment: { horizontal: "center", vertical: "center" },
                             border: thinBorder
                         };
@@ -697,7 +826,6 @@
                 }
             }
 
-            // 6. 다운로드 처리
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "점검결과보고서");
             XLSX.writeFile(workbook, `철도사고_현장조치보고서_${mDate}_${mInspector}.xlsx`);
