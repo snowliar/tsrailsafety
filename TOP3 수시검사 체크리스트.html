@@ -5,17 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>철도안전 SMS 통합 스마트 점검 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 엑셀 서식/스타일 적용 지원 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-        body { font-family: 'Pretendard', sans-serif; letter-spacing: -0.02em; }
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            letter-spacing: -0.02em; 
+            word-break: keep-all; /* 한글 단어 단위 줄바꿈 적용 */
+        }
         
-        /* 프리미엄 스크롤바 디자인 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* PDF 인쇄 및 저장 전용 스타일 가이드 */
+        .break-keep { word-break: keep-all; }
+
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; color: black !important; padding: 0 !important; }
@@ -28,20 +34,28 @@
 <body class="bg-[#0f172a] text-slate-100 min-h-screen flex flex-col antialiased">
 
     <header class="bg-[#0b0f19]/90 backdrop-blur-md text-white shadow-xl sticky top-0 z-50 border-b border-slate-800/80 px-6 py-4 no-print">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div class="flex items-center space-x-3.5">
-                <div class="bg-gradient-to-tr from-indigo-600 to-blue-500 p-2.5 rounded-xl text-white font-black text-sm tracking-wider shadow-lg shadow-indigo-500/20">SMS</div>
+                <div class="bg-gradient-to-tr from-indigo-600 to-blue-500 p-2.5 rounded-xl text-white font-black text-sm tracking-wider shadow-lg shadow-indigo-500/20 flex-shrink-0">SMS</div>
                 <div>
-                    <h1 class="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">철도안전 통합 스마트 점검 시스템</h1>
+                    <h1 class="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent break-keep">철도안전 통합 스마트 점검 시스템</h1>
                     <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Railway Safety Management System Digital Auditor</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
-                    <span>📊 사고보고서 엑셀추출</span>
+            
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="downloadExcelTemplate()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center space-x-1 flex-shrink-0">
+                    <span>📥 양식 다운로드</span>
                 </button>
-                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
-                    <span>🖨️ PDF 보고서 인쇄</span>
+                <label class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer flex items-center space-x-1 flex-shrink-0">
+                    <span>📂 항목 엑셀 업로드</span>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="importChecklistExcel(event)">
+                </label>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center space-x-1 flex-shrink-0">
+                    <span>📊 결과 엑셀추출</span>
+                </button>
+                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center space-x-1 flex-shrink-0">
+                    <span>🖨️ PDF 인쇄</span>
                 </button>
             </div>
         </div>
@@ -55,7 +69,6 @@
         </div>
 
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             <div class="bg-[#131c31] rounded-2xl border border-slate-800 p-5 space-y-4 shadow-xl flex flex-col justify-between card-shadow">
                 <div class="space-y-4">
                     <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
@@ -64,11 +77,7 @@
                     
                     <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/80 no-print">
                         <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">🚨 현장 사고장애 유형 선택</span>
-                        <div class="grid grid-cols-3 gap-1.5">
-                            <button type="button" onclick="switchMasterCategory('fire')" id="btn-choice-fire" class="py-2.5 px-1 text-center rounded-lg text-xs font-black transition-all bg-indigo-600 text-white shadow-md border border-indigo-500">🔥 화재</button>
-                            <button type="button" onclick="switchMasterCategory('derailment')" id="btn-choice-derailment" class="py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 border border-transparent">🛤️ 탈선</button>
-                            <button type="button" onclick="switchMasterCategory('injury')" id="btn-choice-injury" class="py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 border border-transparent">👷 직원사상</button>
-                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5" id="master-category-selector"></div>
                     </div>
 
                     <div class="space-y-3">
@@ -93,9 +102,9 @@
             <div class="lg:col-span-2 bg-[#131c31] rounded-2xl border border-slate-800 p-5 flex flex-col justify-between shadow-xl card-shadow">
                 <div class="flex justify-between items-start">
                     <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
-                        <span class="w-1.5 h-3.5 bg-indigo-500 rounded-full mr-2 block"></span>선택 사고장애 세션 실시간 통계 (50개 필수 기준)
+                        <span class="w-1.5 h-3.5 bg-indigo-500 rounded-full mr-2 block"></span>선택 사고장애 세션 실시간 통계
                     </h2>
-                    <button onclick="resetAllData()" class="text-xs text-slate-500 hover:text-rose-400 font-semibold transition-colors no-print">🔄 데이터 전체 초기화</button>
+                    <button onclick="resetAllData()" class="text-xs text-slate-500 hover:text-rose-400 font-semibold transition-colors no-print flex-shrink-0">🔄 진단 결과 초기화</button>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-3">
@@ -113,20 +122,17 @@
                     </div>
                     <div class="bg-slate-900/30 border border-slate-800/80 p-3.5 rounded-xl text-center">
                         <span class="text-[11px] font-bold text-slate-500 block">미진행 문항</span>
-                        <span class="text-2xl font-bold text-slate-400 mt-1 block" id="count-pending">50</span>
+                        <span class="text-2xl font-bold text-slate-400 mt-1 block" id="count-pending">0</span>
                     </div>
                 </div>
 
-                <div class="space-y-2 border-t border-slate-800 pt-3" id="theme-progress-zone">
-                    </div>
+                <div class="space-y-2 border-t border-slate-800 pt-3" id="theme-progress-zone"></div>
             </div>
         </section>
 
-        <div class="flex flex-wrap gap-1.5 p-1.5 bg-[#131c31] border border-slate-800 rounded-xl no-print" id="sub-theme-tabs">
-            </div>
+        <div class="flex flex-wrap gap-1.5 p-1.5 bg-[#131c31] border border-slate-800 rounded-xl no-print" id="sub-theme-tabs"></div>
 
-        <section class="space-y-3" id="checklist-render-area">
-            </section>
+        <section class="space-y-3" id="checklist-render-area"></section>
 
     </main>
 
@@ -136,8 +142,7 @@
     </footer>
 
     <script>
-        // 전역 데이터 모델 정의 (150선 마스터 텍스트 데이터 완전 이식 보장)
-        const rawChecklistData = {
+        const defaultChecklistData = {
             fire: {
                 title: "화재 위험성 예방 검사",
                 themes: {
@@ -170,27 +175,47 @@
             }
         };
 
-        // 전역 상태 통합 파라미터 (데이터가 깨지지 않는 통합 버전 키 매핑 적용)
+        let rawChecklistData = {};
         let currentCategory = 'fire'; 
         let currentSubTheme = 't1';
         let savedStates = JSON.parse(localStorage.getItem('railway_sms_v4')) || {};
 
         window.onload = function() {
+            loadChecklistStructure();
             loadMeta();
-            updateMasterSelectorUI();
+            renderCategorySelectorUI();
             renderSubTabs();
             renderChecklist();
             calculateCompliance();
         };
 
-        // 메타 데이터 및 상태 복원
+        function loadChecklistStructure() {
+            const customData = localStorage.getItem('railway_sms_custom_checklist');
+            if (customData) {
+                try {
+                    rawChecklistData = JSON.parse(customData);
+                } catch(e) {
+                    rawChecklistData = defaultChecklistData;
+                }
+            } else {
+                rawChecklistData = defaultChecklistData;
+            }
+
+            const categories = Object.keys(rawChecklistData);
+            if (categories.length > 0) {
+                currentCategory = savedStates['active_category'] && rawChecklistData[savedStates['active_category']] 
+                    ? savedStates['active_category'] 
+                    : categories[0];
+                
+                const themes = Object.keys(rawChecklistData[currentCategory]?.themes || {});
+                currentSubTheme = themes.length > 0 ? themes[0] : '';
+            }
+        }
+
         function loadMeta() {
             document.getElementById('meta-name').value = savedStates['meta_name'] || '';
             document.getElementById('meta-date').value = savedStates['meta_date'] || new Date().toISOString().split('T')[0];
             document.getElementById('meta-inspector').value = savedStates['meta_inspector'] || '';
-            if (savedStates['active_category']) {
-                currentCategory = savedStates['active_category'];
-            }
         }
 
         function saveMeta() {
@@ -201,44 +226,55 @@
             localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
         }
 
-        // 프리미엄 콤팩트 3단 셀렉터 UI 제어 함수
-        function updateMasterSelectorUI() {
-            ['fire', 'derailment', 'injury'].forEach(c => {
-                const btn = document.getElementById(`btn-choice-${c}`);
-                if (c === currentCategory) {
-                    btn.className = "py-2.5 px-1 text-center rounded-lg text-xs font-black transition-all bg-indigo-600 text-white shadow-md border border-indigo-500";
-                } else {
-                    btn.className = "py-2.5 px-1 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 hover:bg-slate-900 border border-transparent";
-                }
+        function renderCategorySelectorUI() {
+            const container = document.getElementById('master-category-selector');
+            if (!container) return;
+            container.innerHTML = '';
+
+            Object.keys(rawChecklistData).forEach(catKey => {
+                const catObj = rawChecklistData[catKey];
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = `btn-choice-${catKey}`;
+                const isSelected = catKey === currentCategory;
+                
+                btn.className = isSelected 
+                    ? "py-2.5 px-2 text-center rounded-lg text-xs font-black transition-all bg-indigo-600 text-white shadow-md border border-indigo-500 break-keep flex items-center justify-center leading-tight min-h-[40px]"
+                    : "py-2.5 px-2 text-center rounded-lg text-xs font-bold transition-all text-slate-400 bg-slate-900/50 hover:text-slate-200 border border-transparent break-keep flex items-center justify-center leading-tight min-h-[40px]";
+                
+                btn.innerText = catObj.title;
+                btn.onclick = () => switchMasterCategory(catKey);
+                container.appendChild(btn);
             });
 
-            // 상단 인쇄용 타이틀 실시간 교체
-            const catTitle = rawChecklistData[currentCategory].title;
-            document.getElementById('print-main-title').innerText = `철도 비상사태 대응체계 SMS 정밀 진단 리포트 [${catTitle}]`;
+            if (rawChecklistData[currentCategory]) {
+                document.getElementById('print-main-title').innerText = `철도 비상사태 대응체계 SMS 정밀 진단 리포트 [${rawChecklistData[currentCategory].title}]`;
+            }
         }
 
-        // 사고장애 유형 락업 변경 핸들러
         function switchMasterCategory(cat) {
             currentCategory = cat;
-            currentSubTheme = 't1'; // 다른 유형 선택 시 테마 첫 번째 탭으로 초기화
+            const themes = Object.keys(rawChecklistData[currentCategory]?.themes || {});
+            currentSubTheme = themes.length > 0 ? themes[0] : '';
+            
             saveMeta();
-            updateMasterSelectorUI();
+            renderCategorySelectorUI();
             renderSubTabs();
             renderChecklist();
             calculateCompliance();
         }
 
-        // 중분류 5대 테마 캡슐 내비게이터 바 주입
         function renderSubTabs() {
             const container = document.getElementById('sub-theme-tabs');
-            if(!container) return;
+            if (!container) return;
             container.innerHTML = '';
-            const subThemes = rawChecklistData[currentCategory].themes;
+
+            const subThemes = rawChecklistData[currentCategory]?.themes || {};
 
             Object.keys(subThemes).forEach(key => {
                 const isActive = key === currentSubTheme;
                 const btn = document.createElement('button');
-                btn.className = `px-4 py-2 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`;
+                btn.className = `px-3.5 py-2 rounded-lg text-xs font-bold transition-all break-keep whitespace-nowrap ${isActive ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`;
                 btn.innerText = subThemes[key].name;
                 btn.onclick = () => {
                     currentSubTheme = key;
@@ -249,15 +285,14 @@
             });
         }
 
-        // 50개 항목 중 세션별 10개 문항 리스트 카드 출력기
         function renderChecklist() {
             const area = document.getElementById('checklist-render-area');
-            if(!area) return;
+            if (!area) return;
             area.innerHTML = '';
             
-            const currentThemeData = rawChecklistData[currentCategory].themes[currentSubTheme];
-            if(!currentThemeData) return;
-            const items = currentThemeData.items;
+            const currentThemeData = rawChecklistData[currentCategory]?.themes[currentSubTheme];
+            if (!currentThemeData) return;
+            const items = currentThemeData.items || [];
 
             items.forEach((itemText, index) => {
                 const itemKey = `${currentCategory}_${currentSubTheme}_${index}`;
@@ -271,20 +306,20 @@
                 }`;
 
                 card.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div class="flex items-start space-x-3">
-                            <span class="text-[10px] font-black tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase flex-shrink-0 mt-0.5">ITEM ${String(index + 1).padStart(2, '0')}</span>
-                            <p class="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed">${itemText}</p>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div class="flex items-start space-x-3 flex-1 min-w-0">
+                            <span class="text-[10px] font-black tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase flex-shrink-0 mt-0.5 text-center min-w-[54px]">ITEM ${String(index + 1).padStart(2, '0')}</span>
+                            <p class="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed break-keep flex-1">${itemText}</p>
                         </div>
-                        <div class="flex space-x-1.5 w-full sm:w-auto justify-end flex-shrink-0 no-print">
-                            <button onclick="setStatus('${itemKey}', 'pass')" class="text-xs font-bold px-3.5 py-1.5 rounded-lg border transition-all ${currentStatus === 'pass' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">적합</button>
-                            <button onclick="setStatus('${itemKey}', 'fail')" class="text-xs font-bold px-3.5 py-1.5 rounded-lg border transition-all ${currentStatus === 'fail' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">부적합</button>
+                        <div class="flex items-center space-x-1.5 w-full sm:w-auto justify-end flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 no-print">
+                            <button onclick="setStatus('${itemKey}', 'pass')" class="w-16 py-1.5 rounded-lg border text-xs font-bold transition-all text-center ${currentStatus === 'pass' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">적합</button>
+                            <button onclick="setStatus('${itemKey}', 'fail')" class="w-16 py-1.5 rounded-lg border text-xs font-bold transition-all text-center ${currentStatus === 'fail' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">부적합</button>
                         </div>
                         <div class="hidden print:block font-bold text-xs text-slate-700 flex-shrink-0">
                             【 ${currentStatus === 'pass' ? '적합' : currentStatus === 'fail' ? '부적합' : '미점검'} 】
                         </div>
                     </div>
-                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                    <div class="mt-3 pt-2.5 border-t border-slate-100">
                         <input type="text" placeholder="✍️ 특이사항 관찰 기록 및 후속 조치 계획 입력란" value="${memoValue}" onchange="saveMemo('${itemKey}', this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
                     </div>
                 `;
@@ -306,41 +341,51 @@
             localStorage.setItem('railway_sms_v4', JSON.stringify(savedStates));
         }
 
-        // 선택 사고 세션(50개 전용 마스터) 한정 실시간 연산 가시화 프로세스
         function calculateCompliance() {
-            let pass = 0, fail = 0, pending = 50;
-            let themeTracking = { t1: 0, t2: 0, t3: 0, t4: 0, t5: 0 };
+            let pass = 0, fail = 0, pending = 0, totalItems = 0;
+            let themeTracking = {};
 
-            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
-                for(let i=0; i<10; i++) {
+            const subThemes = rawChecklistData[currentCategory]?.themes || {};
+
+            Object.keys(subThemes).forEach(t => {
+                const items = subThemes[t].items || [];
+                themeTracking[t] = { pass: 0, total: items.length };
+
+                items.forEach((_, i) => {
+                    totalItems++;
                     const key = `${currentCategory}_${t}_${i}`;
-                    if(savedStates[key]?.status === 'pass') { pass++; themeTracking[t]++; pending--; }
-                    else if(savedStates[key]?.status === 'fail') { fail++; pending--; }
-                }
+                    if (savedStates[key]?.status === 'pass') {
+                        pass++;
+                        themeTracking[t].pass++;
+                    } else if (savedStates[key]?.status === 'fail') {
+                        fail++;
+                    } else {
+                        pending++;
+                    }
+                });
             });
 
             document.getElementById('count-pass').innerText = pass;
             document.getElementById('count-fail').innerText = fail;
             document.getElementById('count-pending').innerText = pending;
 
-            const rate = pending === 50 ? 0 : Math.round((pass / 50) * 100);
+            const rate = totalItems === 0 ? 0 : Math.round((pass / totalItems) * 100);
             document.getElementById('total-compliance').innerText = `${rate}%`;
 
-            // 대시보드 내 5대 세부 테마별 텍스트 바 그래프 그리기
             const progressZone = document.getElementById('theme-progress-zone');
-            if(!progressZone) return;
+            if (!progressZone) return;
             progressZone.innerHTML = '';
             
-            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
-                const themeName = rawChecklistData[currentCategory].themes[t].name;
-                const themePass = themeTracking[t];
-                const pct = Math.round((themePass / 10) * 100);
+            Object.keys(subThemes).forEach(t => {
+                const themeName = subThemes[t].name;
+                const themeData = themeTracking[t];
+                const pct = themeData.total === 0 ? 0 : Math.round((themeData.pass / themeData.total) * 100);
                 
                 progressZone.innerHTML += `
                     <div>
-                        <div class="flex justify-between text-[11px] text-slate-400 font-medium mb-1">
+                        <div class="flex justify-between text-[11px] text-slate-400 font-medium mb-1 break-keep">
                             <span>📋 ${themeName}</span>
-                            <span class="font-bold text-slate-200">${pct}% (${themePass}/10)</span>
+                            <span class="font-bold text-slate-200">${pct}% (${themeData.pass}/${themeData.total})</span>
                         </div>
                         <div class="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
                             <div class="bg-indigo-500 h-1 transition-all" style="width: ${pct}%"></div>
@@ -351,35 +396,172 @@
         }
 
         function resetAllData() {
-            if(confirm('모든 인풋 데이터와 진단 체크리스트를 완전히 지우시겠습니까?')) {
+            if (confirm('모든 입력 데이터와 진단 체크리스트 판정 결과를 지우시겠습니까?')) {
                 savedStates = {};
                 localStorage.removeItem('railway_sms_v4');
                 document.getElementById('meta-name').value = '';
                 document.getElementById('meta-inspector').value = '';
-                switchMasterCategory('fire');
+                switchMasterCategory(Object.keys(rawChecklistData)[0]);
             }
         }
 
-        // 고도화 요건: 타겟팅된 '단일 선택 사고 유형(50문항)' 한정 맞춤 보고서 다운로드 파이프라인
+        function downloadExcelTemplate() {
+            const templateRows = [];
+
+            Object.keys(rawChecklistData).forEach(catKey => {
+                const catObj = rawChecklistData[catKey];
+                Object.keys(catObj.themes).forEach(themeKey => {
+                    const themeObj = catObj.themes[themeKey];
+                    themeObj.items.forEach(item => {
+                        templateRows.push({
+                            "사고유형코드": catKey,
+                            "사고유형명칭": catObj.title,
+                            "테마코드": themeKey,
+                            "테마명칭": themeObj.name,
+                            "점검항목": item
+                        });
+                    });
+                });
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(templateRows);
+
+            worksheet['!cols'] = [
+                { wch: 15 },
+                { wch: 25 },
+                { wch: 12 },
+                { wch: 25 },
+                { wch: 80 }
+            ];
+
+            const thinBorder = {
+                top: { style: "thin", color: { rgb: "CBD5E1" } },
+                bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+                left: { style: "thin", color: { rgb: "CBD5E1" } },
+                right: { style: "thin", color: { rgb: "CBD5E1" } }
+            };
+
+            const headerStyle = {
+                font: { name: "맑은 고딕", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "1E293B" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: thinBorder
+            };
+
+            const cellStyleCenter = {
+                font: { name: "맑은 고딕", sz: 10 },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: thinBorder
+            };
+
+            const cellStyleLeft = {
+                font: { name: "맑은 고딕", sz: 10 },
+                alignment: { horizontal: "left", vertical: "center", wrapText: true },
+                border: thinBorder
+            };
+
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!worksheet[cellAddress]) continue;
+
+                    if (R === 0) {
+                        worksheet[cellAddress].s = headerStyle;
+                    } else {
+                        if (C === 0 || C === 2 || C === 1 || C === 3) {
+                            worksheet[cellAddress].s = cellStyleCenter;
+                        } else {
+                            worksheet[cellAddress].s = cellStyleLeft;
+                        }
+                    }
+                }
+            }
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "체크리스트_양식");
+            XLSX.writeFile(workbook, "철도안전_체크리스트_마스터_양식.xlsx");
+        }
+
+        function importChecklistExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+                    if (rows.length === 0) {
+                        alert("엑셀 파일에 데이터가 없습니다.");
+                        return;
+                    }
+
+                    const parsedData = {};
+
+                    rows.forEach(row => {
+                        const catCode = row['사고유형코드']?.toString().trim();
+                        const catTitle = row['사고유형명칭']?.toString().trim();
+                        const themeCode = row['테마코드']?.toString().trim();
+                        const themeName = row['테마명칭']?.toString().trim();
+                        const item = row['점검항목']?.toString().trim();
+
+                        if (!catCode || !catTitle || !themeCode || !themeName || !item) return;
+
+                        if (!parsedData[catCode]) {
+                            parsedData[catCode] = { title: catTitle, themes: {} };
+                        }
+                        if (!parsedData[catCode].themes[themeCode]) {
+                            parsedData[catCode].themes[themeCode] = { name: themeName, items: [] };
+                        }
+                        parsedData[catCode].themes[themeCode].items.push(item);
+                    });
+
+                    if (Object.keys(parsedData).length === 0) {
+                        alert("올바른 엑셀 양식이 아닙니다. 양식 다운로드 버튼을 눌러 제출 형식을 확인해 주세요.");
+                        return;
+                    }
+
+                    rawChecklistData = parsedData;
+                    localStorage.setItem('railway_sms_custom_checklist', JSON.stringify(parsedData));
+
+                    alert("엑셀 체크리스트가 성공적으로 업데이트되었습니다!");
+                    
+                    const firstCat = Object.keys(rawChecklistData)[0];
+                    switchMasterCategory(firstCat);
+
+                } catch (err) {
+                    alert("엑셀 파일 수신 및 파싱 중 오류가 발생하였습니다: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
         function exportToExcel() {
             const mName = document.getElementById('meta-name').value || "미지정 사고건명";
             const mDate = document.getElementById('meta-date').value || "미지정 일자";
             const mInspector = document.getElementById('meta-inspector').value || "미지정 검사관";
-            const catTitle = rawChecklistData[currentCategory].title;
+            const catTitle = rawChecklistData[currentCategory]?.title || "미지정";
 
-            let csv = "\uFEFF"; // EXCEL 한글 깨짐 방지 BOM 삽입
+            let csv = "\uFEFF";
             csv += `철도 사고장애 점검 결과보고서 [${catTitle}],${mName},진단일자,${mDate},현장검사관,${mInspector}\n\n`;
             csv += "사고장애분류,안전진단 테마,문항번호,정밀 점검 요구서 내용,결과판정,특이사항 관찰기록 및 보완요구 대책\n";
 
-            ['t1', 't2', 't3', 't4', 't5'].forEach(t => {
-                const themeName = rawChecklistData[currentCategory].themes[t].name;
-                rawChecklistData[currentCategory].themes[t].items.forEach((itemText, i) => {
+            const subThemes = rawChecklistData[currentCategory]?.themes || {};
+
+            Object.keys(subThemes).forEach(t => {
+                const themeName = subThemes[t].name;
+                (subThemes[t].items || []).forEach((itemText, i) => {
                     const key = `${currentCategory}_${t}_${i}`;
                     const statusObj = savedStates[key];
                     let statusText = "미점검";
-                    if(statusObj?.status === 'pass') statusText = "적합";
-                    if(statusObj?.status === 'fail') statusText = "부적합";
-                    const memoText = statusObj?.memo ? statusObj.memo.replace(/,/g, " ") : ""; // CSV 깨짐 방지 콤마 변환
+                    if (statusObj?.status === 'pass') statusText = "적합";
+                    if (statusObj?.status === 'fail') statusText = "부적합";
+                    const memoText = statusObj?.memo ? statusObj.memo.replace(/,/g, " ") : "";
                     
                     csv += `"${catTitle}","${themeName}","문항 ${i+1}","${itemText.replace(/"/g, '""')}","${statusText}","${memoText}"\n`;
                 });
