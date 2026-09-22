@@ -546,7 +546,7 @@
         }
 
         // ==========================================
-        // 고도화된 결과보고서 전용 엑셀 추출 엔진 (XLSX)
+        // 결재란 없는 깔끔한 결과보고서 엑셀 추출 엔진
         // ==========================================
         function exportToExcel() {
             const mName = document.getElementById('meta-name').value || "미지정 사고건명";
@@ -559,12 +559,12 @@
             const failCount = document.getElementById('count-fail').innerText;
             const pendingCount = document.getElementById('count-pending').innerText;
 
-            // 1. 결과 보고서 표 데이터 구성
+            // 1. 점검 요약 및 데이터 행 구성 (결재란 제거)
             const reportRows = [
                 [`철도 비상사태 대응체계 SMS 정밀 진단 리포트 [${catTitle}]`],
                 ["점검 과제명", mName, "진단일자", mDate, "현장검사관", mInspector],
                 ["현장 준수율", totalCompliance, "적합(PASS)", `${passCount} 건`, "부적합(CRITICAL)", `${failCount} 건`],
-                [], // 공백 행
+                [], 
                 ["사고장애분류", "안전진단 테마", "문항번호", "정밀 점검 요구서 내용", "결과판정", "특이사항 관찰기록 및 보완요구 대책"]
             ];
 
@@ -594,17 +594,17 @@
             // 2. 워크시트 생성 및 병합 설정
             const worksheet = XLSX.utils.aoa_to_sheet(reportRows);
             worksheet['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } } // 1행 제목 셀 병합 (A1:F1)
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } } // 제목 행 셀 병합 (A1:F1)
             ];
 
-            // 3. 열 너비 지정
+            // 3. 열 너비 설정
             worksheet['!cols'] = [
-                { wch: 20 }, // 사고장애분류
-                { wch: 22 }, // 안전진단 테마
-                { wch: 12 }, // 문항번호
-                { wch: 65 }, // 정밀 점검 요구서 내용
-                { wch: 12 }, // 결과판정
-                { wch: 45 }  // 특이사항 관찰기록
+                { wch: 20 }, 
+                { wch: 22 }, 
+                { wch: 12 }, 
+                { wch: 65 }, 
+                { wch: 12 }, 
+                { wch: 45 }  
             ];
 
             // 4. 서식 스타일 정의
@@ -615,27 +615,25 @@
                 right: { style: "thin", color: { rgb: "CBD5E1" } }
             };
 
-            // 타이틀 스타일
             const titleStyle = {
                 font: { name: "맑은 고딕", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
                 fill: { fgColor: { rgb: "0F172A" } },
                 alignment: { horizontal: "center", vertical: "center" }
             };
 
-            // 상단 정보 헤더/값 스타일
             const metaLabelStyle = {
                 font: { name: "맑은 고딕", sz: 10, bold: true, color: { rgb: "334155" } },
                 fill: { fgColor: { rgb: "F1F5F9" } },
                 alignment: { horizontal: "center", vertical: "center" },
                 border: thinBorder
             };
+
             const metaValueStyle = {
                 font: { name: "맑은 고딕", sz: 10, bold: true },
                 alignment: { horizontal: "center", vertical: "center" },
                 border: thinBorder
             };
 
-            // 테이블 메인 헤더 스타일
             const tableHeaderStyle = {
                 font: { name: "맑은 고딕", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
                 fill: { fgColor: { rgb: "1E293B" } },
@@ -643,13 +641,11 @@
                 border: thinBorder
             };
 
-            // 5. 셀별 스타일 개별 적용
+            // 5. 셀별 서식 매핑
             const range = XLSX.utils.decode_range(worksheet['!ref']);
 
-            // Row 0: 타이틀
             if (worksheet['A1']) worksheet['A1'].s = titleStyle;
 
-            // Row 1, 2: 메타 데이터 및 요건 통계
             ['A2', 'C2', 'E2', 'A3', 'C3', 'E3'].forEach(addr => {
                 if (worksheet[addr]) worksheet[addr].s = metaLabelStyle;
             });
@@ -657,19 +653,17 @@
                 if (worksheet[addr]) worksheet[addr].s = metaValueStyle;
             });
 
-            // Row 4: 테이블 헤더 (A5:F5)
             ['A5', 'B5', 'C5', 'D5', 'E5', 'F5'].forEach(addr => {
                 if (worksheet[addr]) worksheet[addr].s = tableHeaderStyle;
             });
 
-            // Row 5~: 본문 데이터
             for (let R = 5; R <= range.e.r; ++R) {
                 for (let C = 0; C <= 5; ++C) {
                     const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                     const cell = worksheet[cellAddress];
                     if (!cell) continue;
 
-                    if (C === 4) { // 결과판정 (적합:초록, 부적합:빨강, 미점검:회색)
+                    if (C === 4) { 
                         let statusBg = "F1F5F9";
                         let statusFg = "64748B";
 
@@ -687,13 +681,13 @@
                             alignment: { horizontal: "center", vertical: "center" },
                             border: thinBorder
                         };
-                    } else if (C === 3 || C === 5) { // 점검내용 및 메모 (좌측 정렬 + 자동 줄바꿈)
+                    } else if (C === 3 || C === 5) { 
                         cell.s = {
                             font: { name: "맑은 고딕", sz: 10 },
                             alignment: { horizontal: "left", vertical: "center", wrapText: true },
                             border: thinBorder
                         };
-                    } else { // 사고분류, 테마, 문항번호 (중앙 정렬)
+                    } else { 
                         cell.s = {
                             font: { name: "맑은 고딕", sz: 10 },
                             alignment: { horizontal: "center", vertical: "center" },
@@ -703,7 +697,7 @@
                 }
             }
 
-            // 6. 저장 및 다운로드 (.xlsx 확장자로 내보내기)
+            // 6. 다운로드 처리
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "점검결과보고서");
             XLSX.writeFile(workbook, `철도사고_현장조치보고서_${mDate}_${mInspector}.xlsx`);
